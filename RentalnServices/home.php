@@ -8,7 +8,7 @@ $tiles = [];
 foreach (['home', 'cleaning', 'personal', 'outdoor'] as $k) {
     $tiles[] = [$groups[$k][0], $groups[$k][1], 'services.php?group=' . $k];
 }
-$tiles[] = ['Vehicles', 'car', 'services.php?tab=vehicles'];
+$tiles[] = ['Vehicles', 'car', 'vehicles.php'];
 
 $popular = $me['city'] ? popular_services($pdo, $me['province'], $me['city']) : [];
 

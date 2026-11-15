@@ -15,7 +15,7 @@ $st->execute([$id]);
 $v = $st->fetch();
 if (!$v || $v['status'] === 'unavailable') {
     flash('That vehicle is not available right now.');
-    header('Location: services.php?tab=vehicles');
+    header('Location: vehicles.php');
     exit;
 }
 if (!$me['area_id']) {
@@ -95,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-user_header('Book ' . $v['model'], 'services.php', ['back' => 'vehicle.php?id=' . $id]);
+user_header('Book ' . $v['model'], 'vehicles.php', ['back' => 'vehicle.php?id=' . $id]);
 if ($err) echo '<p class="alert" role="alert">' . e($err) . '</p>';
 if (!paymongo_enabled()) echo '<p class="alert">Online payment is not set up yet, so booking is switched off.</p>';
 ?>

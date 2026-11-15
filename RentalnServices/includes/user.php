@@ -26,7 +26,7 @@ function require_user(): array {
         $_SESSION = [];   // deactivated or removed
     }
     $role = $_SESSION['user']['role'] ?? '';
-    header('Location: ' . (in_array($role, ['admin', 'manager'], true) ? $role . '/dashboard.php' : 'index.php#login'));
+    header('Location: ' . (in_array($role, ['admin', 'manager'], true) ? $role . '/dashboard.php' : 'login.php'));
     exit;
 }
 
@@ -95,7 +95,7 @@ function short_name(string $full): string {
 // $opts: 'brand' => true shows the app name and tagline instead of a page title; 'back' => link for a back arrow.
 // The navigation is printed once. CSS puts it at the bottom on phones and in the top bar on larger screens.
 function user_header(string $title, string $active, array $opts = []): void {
-    $nav = ['home.php' => ['Home', 'home'], 'services.php' => ['Services', 'services'], 'bookings.php' => ['Bookings', 'calendar'], 'profile.php' => ['Profile', 'user']];
+    $nav = ['home.php' => ['Home', 'home'], 'services.php' => ['Services', 'services'], 'vehicles.php' => ['Vehicles', 'car'], 'bookings.php' => ['Bookings', 'calendar'], 'profile.php' => ['Profile', 'user']];
     ?>
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">

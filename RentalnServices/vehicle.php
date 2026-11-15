@@ -15,7 +15,7 @@ $st->execute([$id]);
 $v = $st->fetch();
 if (!$v) {
     flash('That vehicle is no longer listed.');
-    header('Location: services.php?tab=vehicles');
+    header('Location: vehicles.php');
     exit;
 }
 $st = $pdo->prepare(
@@ -25,7 +25,7 @@ $st = $pdo->prepare(
 $st->execute([$id]);
 $reviews = $st->fetchAll();
 
-user_header($v['model'], 'services.php', ['back' => 'services.php?tab=vehicles']);
+user_header($v['model'], 'vehicles.php', ['back' => 'vehicles.php']);
 ?>
 <div class="cols">
 <section class="panel main">

@@ -1,87 +1,55 @@
 <?php
 require_once __DIR__ . '/includes/site.php';
 
-// Sign-in. The form is the "Log in" section at the bottom of this page (there is no separate login page).
-$landing = ['admin' => 'admin/dashboard.php', 'manager' => 'manager/dashboard.php', 'provider' => 'provider/dashboard.php', 'customer' => 'home.php'];
-$me = $_SESSION['user'] ?? null;
-$error = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$me) {
-    csrf_check();
-    $st = db()->prepare(
-        "SELECT u.id, u.role, u.full_name, u.password_hash, u.is_active, pp.application_status, pp.review_note, a.city_municipality AS city
-         FROM users u LEFT JOIN provider_profiles pp ON pp.user_id = u.id LEFT JOIN areas a ON a.id = u.area_id
-         WHERE u.email = ?"
-    );
-    $st->execute([trim($_POST['email'] ?? '')]);
-    $user = $st->fetch();
-    if ($user && password_verify($_POST['password'] ?? '', $user['password_hash'])) {
-        // Only someone who knows the password is told where a provider application stands.
-        if ($user['role'] === 'provider' && ($user['application_status'] ?? '') === 'pending') {
-            $error = 'Your provider application is waiting for approval by the manager of ' . ($user['city'] ?: 'your city') . ' or an admin. You can log in once it is approved.';
-        } elseif ($user['role'] === 'provider' && ($user['application_status'] ?? '') === 'rejected') {
-            $error = 'Your provider application was not approved.' . ($user['review_note'] ? ' Reason: ' . $user['review_note'] : '');
-        } elseif (!$user['is_active']) {
-            $error = 'Email or password is incorrect.';
-        } elseif (isset($landing[$user['role']])) {
-            session_regenerate_id(true);
-            $_SESSION['user'] = ['id' => (int)$user['id'], 'role' => $user['role'], 'name' => $user['full_name']];
-            if ($user['role'] !== 'customer') {
-                log_action('login', 'user', (int)$user['id'], ucfirst($user['role']) . ' signed in');
-            }
-            header('Location: ' . $landing[$user['role']]);
-            exit;
-        } else {
-            $error = 'This account cannot sign in yet.';
-        }
-    } else {
-        $error = 'Email or password is incorrect.';
-    }
-}
-
 $vehicles = vehicle_types();
 $services = service_categories();
-$heroServices = array_slice($services, 0, 5);
 
 public_header('Vehicles and home services', true);
 ?>
-<section class="hero">
-  <div class="wrap">
-    <div>
-      <h1>Rent a vehicle. Book a helper. Handled in your area.</h1>
-      <p class="lead">Choose a car, van or truck with or without a driver, or request plumbing, cleaning, massage and more. A manager in your area confirms every booking, and you pay online.</p>
-      <div class="actions">
-        <a class="btn btn-signal" href="#login">Log in to book</a>
-        <a class="btn btn-ghost" href="#vehicles">See what you can book</a>
-      </div>
-    </div>
-
-    <div class="passes">
-      <article class="pass">
-        <div class="stub">Rent</div>
-        <div class="body">
-          <h2>Book a vehicle</h2>
-          <p>Cars, vans and trucks, with or without a driver.</p>
-          <ul class="chips">
-            <?php foreach ($vehicles as [$label]): ?><li><?= e($label) ?></li><?php endforeach; ?>
-          </ul>
-          <a class="more" href="#login">Log in to book a vehicle</a>
-        </div>
-      </article>
-      <article class="pass">
-        <div class="stub">Book</div>
-        <div class="body">
-          <h2>Request a service</h2>
-          <p>Local providers for your home and personal needs.</p>
-          <ul class="chips">
-            <?php foreach ($heroServices as [$label]): ?><li><?= e($label) ?></li><?php endforeach; ?>
-            <li>and more</li>
-          </ul>
-          <a class="more" href="#login">Log in to request a service</a>
-        </div>
-      </article>
+<section class="slider" id="hero" aria-roledescription="carousel" aria-label="Rent a vehicle or book a service">
+  <div class="slide hero-vehicle on" role="group" aria-roledescription="slide" aria-label="1 of 2">
+    <div class="hero-card">
+      <h1>Rent a vehicle.</h1>
+      <p>Choose a vehicle that is available in your area, with or without a driver.</p>
     </div>
   </div>
+  <div class="slide hero-service" role="group" aria-roledescription="slide" aria-label="2 of 2">
+    <div class="hero-card">
+      <h2>Book a Service.</h2>
+      <p>Find and connect with reliable local professionals for your everyday needs, from home repairs and cleaning to personal care and transportation.</p>
+    </div>
+  </div>
+  <button type="button" class="arrow prev" aria-label="Previous slide">&#8249;</button>
+  <button type="button" class="arrow next" aria-label="Next slide">&#8250;</button>
+  <div class="dots" role="group" aria-label="Choose a slide"><button type="button" class="on" aria-label="Slide 1"></button><button type="button" aria-label="Slide 2"></button></div>
 </section>
+<script>
+(function () {
+  var root = document.getElementById('hero');
+  var slides = root.querySelectorAll('.slide'), dots = root.querySelectorAll('.dots button'), i = 0, timer = null;
+  var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  root.classList.add('js');
+  function show(n) {
+    i = (n + slides.length) % slides.length;
+    slides.forEach(function (s, k) { s.classList.toggle('on', k === i); });
+    dots.forEach(function (d, k) { d.classList.toggle('on', k === i); d.setAttribute('aria-current', k === i ? 'true' : 'false'); });
+  }
+  function play() { if (!still && !timer) timer = setInterval(function () { show(i + 1); }, 6000); }
+  function stop() { clearInterval(timer); timer = null; }
+  root.querySelector('.prev').addEventListener('click', function () { show(i - 1); });
+  root.querySelector('.next').addEventListener('click', function () { show(i + 1); });
+  dots.forEach(function (d, k) { d.addEventListener('click', function () { show(k); }); });
+  root.addEventListener('mouseenter', stop); root.addEventListener('mouseleave', play);
+  root.addEventListener('focusin', stop); root.addEventListener('focusout', play);
+  var x0 = null;
+  root.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; stop(); }, {passive: true});
+  root.addEventListener('touchend', function (e) {
+    if (x0 !== null) { var dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 40) show(i + (dx < 0 ? 1 : -1)); }
+    x0 = null; play();
+  });
+  show(0); play();
+})();
+</script>
 
 <section class="section" id="vehicles">
   <div class="wrap">
@@ -143,27 +111,6 @@ public_header('Vehicles and home services', true);
       <p>Apply to join as a provider. The manager of your city or an admin checks every application. Once it is approved, you can list your vehicles and services and start receiving bookings.</p>
       <p><a class="btn btn-road" href="register.php?as=provider">Apply as a provider</a></p>
     </div>
-  </div>
-</section>
-
-<section class="section" id="login">
-  <div class="wrap loginwrap">
-    <?php if ($me): ?>
-      <div>
-        <h2>You are signed in</h2>
-        <p class="intro">Signed in as <?= e($me['name']) ?>.</p>
-        <p>
-          <a class="btn btn-road" href="<?= e($landing[$me['role']] ?? 'index.php') ?>"><?= $me['role'] === 'customer' ? 'My account' : 'Open my dashboard' ?></a>
-          <a href="logout.php" style="margin-left:1rem;font-weight:600">Log out</a>
-        </p>
-      </div>
-    <?php else: ?>
-      <div>
-        <h2>Log in</h2>
-        <p class="intro">Customers, providers, managers and admins all log in here. You will be taken to your own page.</p>
-      </div>
-      <?php login_form($error); ?>
-    <?php endif; ?>
   </div>
 </section>
 <?php public_footer();

@@ -20,19 +20,20 @@ Each city or municipality has a manager who approves bookings and requests. Prov
    ```
    C:\xampp\php\php.exe database\import_psgc.php
    ```
-6. Open <http://localhost/RentalnServices/>. Admins and managers log in at the bottom of the page (each lands on their own dashboard). Customers use **Sign up** (`register.php`) to create an account.
+6. Open <http://localhost/RentalnServices/>. Everyone logs in on `login.php` (the **Log in** button in the top menu); each role lands on its own page. Customers use **Sign up** (`register.php`) to create an account.
 
 Database settings default to `localhost`, port `3306`, user `root`, no password.
 To change them, copy `config.example.php` to `config.local.php` and edit it. `config.local.php` is git-ignored.
 
 ## Customer app (project root)
 
-A phone-first app with a bottom navigation bar (Home, Services, Bookings, Profile) that becomes a top menu on larger screens.
+A phone-first app with a bottom navigation bar (Home, Services, Vehicles, Bookings, Profile) that becomes a top menu on larger screens.
 
 | Page | What it does |
 | --- | --- |
 | `home.php` | Search, categories, popular services in your city, and your upcoming bookings |
-| `services.php` | Browse services (your city) or vehicles (your city or all cities), with search and filters |
+| `services.php` | Browse services in your city, with search and filters |
+| `vehicles.php` | Browse vehicles to rent (your city or all cities), with search and type filters. Old `services.php?tab=vehicles` links forward here |
 | `service.php`, `vehicle.php` | Details and recent reviews. On a vehicle, Book now opens `book.php` (service requests are not bookable yet) |
 | `book.php`, `pay_return.php` | Pick dates, pay on PayMongo (GCash, Maya, card); the booking is created only after the payment is confirmed |
 | `bookings.php`, `order.php` | Your bookings and requests; cancel a pending one (a paid online payment is marked refunded); review a completed one |

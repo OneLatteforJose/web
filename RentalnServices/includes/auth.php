@@ -55,7 +55,7 @@ function peso($n): string {
 function deny_access(string $area): void {
     $role = $_SESSION['user']['role'] ?? '';
     if ($role === '') {
-        header('Location: ../index.php#login');
+        header('Location: ../login.php');
         exit;
     }
     require_once __DIR__ . '/site.php';

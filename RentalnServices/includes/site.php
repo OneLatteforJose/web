@@ -28,7 +28,7 @@ function service_categories(): array {
 }
 
 // $base is the path back to the project root for pages that live in a sub-folder (for example '../').
-function public_header(string $title, bool $onHome = false, string $base = ''): void {
+function public_header(string $title, bool $onHome = false, string $base = '', string $bodyClass = ''): void {
     $home = $onHome ? '' : $base . 'index.php';
     $user = $_SESSION['user'] ?? null;
     ?>
@@ -40,10 +40,10 @@ function public_header(string $title, bool $onHome = false, string $base = ''): 
 <title><?= e($title) ?> - <?= e(SITE_NAME) ?></title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&amp;family=Public+Sans:wght@400;600&amp;display=swap" rel="stylesheet">
-<link rel="stylesheet" href="<?= e($base) ?>assets/landing.css">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&amp;family=Public+Sans:wght@400;600&amp;family=Archivo+Black&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="<?= e($base) ?>assets/landing.css?v=<?= (int)@filemtime(__DIR__ . '/../assets/landing.css') ?>">
 </head>
-<body>
+<body<?= $bodyClass !== '' ? ' class="' . e($bodyClass) . '"' : '' ?>>
 <header class="topbar">
   <div class="wrap">
     <a class="brand" href="<?= e($base) ?>index.php"><?= e(SITE_NAME) ?></a>
@@ -58,8 +58,8 @@ function public_header(string $title, bool $onHome = false, string $base = ''): 
     <?php elseif (($user['role'] ?? '') === 'customer'): ?>
       <a class="btn btn-road" href="<?= e($base) ?>home.php">My account</a>
     <?php else: ?>
-      <a href="<?= e($base) ?>register.php" style="text-decoration:none;font-weight:600">Sign up</a>
-      <a class="btn btn-road" href="<?= $onHome ? '#login' : e($base) . 'index.php#login' ?>">Log in</a>
+      <a class="btn btn-outline" href="<?= e($base) ?>register.php">Sign up</a>
+      <a class="btn btn-road" href="<?= e($base) ?>login.php">Log in</a>
     <?php endif; ?>
   </div>
 </header>
@@ -68,18 +68,24 @@ function public_header(string $title, bool $onHome = false, string $base = ''): 
 
 function login_form(string $error = ''): void {
     ?>
-<form method="post" action="index.php#login" class="formcard">
+<form method="post" action="login.php" class="formcard">
   <?php if ($error): ?><p class="alert" role="alert"><?= e($error) ?></p><?php endif; ?>
   <?= csrf_field() ?>
   <label>Email
-    <input type="email" name="email" autocomplete="email" required>
+    <input type="email" name="email" autocomplete="email" value="<?= e(trim($_POST['email'] ?? '')) ?>" required autofocus>
   </label>
   <label>Password
-    <input type="password" name="password" autocomplete="current-password" required>
+    <input type="password" name="password" id="password" autocomplete="current-password" required>
   </label>
+  <label class="showpw"><input type="checkbox" id="showpw"> Show password</label>
   <button class="btn btn-road">Log in</button>
   <p style="margin:0;font-size:.9rem">New here? <a href="register.php">Create an account</a></p>
 </form>
+<script>
+document.getElementById('showpw').addEventListener('change', function () {
+  document.getElementById('password').type = this.checked ? 'text' : 'password';
+});
+</script>
 <?php
 }
 

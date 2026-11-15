@@ -26,6 +26,8 @@ a{color:inherit}
 .btn-signal:hover{background:#ffd75e}
 .btn-road{background:var(--road);color:#fff}
 .btn-road:hover{background:#17473a}
+.btn-outline{background:transparent;color:var(--road);border-color:var(--road)}
+.btn-outline:hover{background:var(--road);color:#fff}
 .btn-ghost{border-color:currentColor;color:#fff}
 .btn-ghost:hover{background:rgba(255,255,255,.12)}
 
@@ -44,6 +46,30 @@ a{color:inherit}
 .chips{display:flex;flex-wrap:wrap;gap:.4rem;margin:0 0 .9rem;padding:0;list-style:none}
 .chips li{border:1px solid var(--line);border-radius:999px;padding:.1rem .7rem;font-size:.85rem;background:var(--paper)}
 .more{font-weight:600;color:var(--road)}
+
+/* hero slideshow: "Rent a vehicle." and "Book a Service."
+   Each slide uses a real photo if one exists (assets/img/hero-vehicle.jpg, hero-service.jpg, about 1920x900),
+   otherwise the illustration next to it (.svg). To add a slide, copy a .slide block in index.php and add a dot. */
+.slider{position:relative;height:clamp(560px,76vh,780px);overflow:hidden;background:var(--road)}
+.slide{position:absolute;inset:0;display:flex;padding:2.5rem 1.25rem 4rem;background-color:var(--road);background-size:cover;background-position:center;opacity:0;visibility:hidden;transition:opacity .8s ease,visibility 0s linear .8s}
+.slide.on{opacity:1;visibility:visible;transition:opacity .8s ease}
+.slider:not(.js) .slide:not(:first-of-type){display:none}
+.hero-vehicle{align-items:flex-start;justify-content:center;padding-top:2rem;background-image:url(img/hero-vehicle.jpg),url(img/hero-vehicle.svg),linear-gradient(135deg,#1F5C4B,#2a6f8f)}
+.hero-service{align-items:flex-end;justify-content:flex-end;background-image:url(img/hero-service.jpg),url(img/hero-service.svg),linear-gradient(135deg,#2a6f8f,#1F5C4B)}
+.hero-card{width:min(100%,560px);background:rgba(203,210,220,.94);border-radius:32px;padding:1.8rem 2.2rem 2rem;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.hero-service .hero-card{width:min(100%,600px);margin:0 max(0px,calc((100% - 1080px)/2))}
+.hero-card h1,.hero-card h2{margin:0 0 .5rem;font:400 clamp(2.3rem,5vw,4rem)/1.05 'Archivo Black','Bricolage Grotesque',system-ui,sans-serif;color:#2b6a1c;letter-spacing:-.01em}
+.hero-card p{margin:0 0 1.3rem;color:#0d1a14;font-size:clamp(1.05rem,1.6vw,1.3rem);line-height:1.45}
+.hero-card p:last-child{margin-bottom:0}
+.arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:3;width:46px;height:46px;border:0;border-radius:50%;background:rgba(255,255,255,.85);color:var(--ink);font:400 2rem/1 var(--body);cursor:pointer;display:grid;place-items:center;padding:0 0 .25rem}
+.arrow:hover{background:#fff}
+.arrow.prev{left:1rem}.arrow.next{right:1rem}
+.dots{position:absolute;bottom:1.1rem;left:50%;transform:translateX(-50%);z-index:3;display:flex;gap:.6rem}
+.dots button{width:12px;height:12px;border-radius:50%;border:2px solid #fff;background:rgba(255,255,255,.35);padding:0;cursor:pointer}
+.dots button.on{background:#fff}
+.slider:not(.js) .arrow,.slider:not(.js) .dots{display:none}
+@media (prefers-reduced-motion:reduce){.slide,.slide.on{transition:none}}
+@media (max-width:640px){.slider{height:600px}.slide{align-items:flex-end;justify-content:center;padding:1rem 1rem 3.5rem}.hero-vehicle{align-items:flex-start;padding-top:1rem}.hero-service .hero-card{margin:0}.arrow{display:none}}
 
 /* sections */
 .section{padding:4rem 0}
@@ -83,8 +109,20 @@ a{color:inherit}
 .formcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:1.5rem;display:grid;gap:1rem}
 .formcard label{display:grid;gap:.3rem;font-weight:600;font-size:.9rem}
 .formcard input{font:inherit;padding:.65rem .75rem;border:1px solid #9fb0a5;border-radius:8px;background:#fff;color:var(--ink)}
+.formcard .showpw{display:flex;align-items:center;gap:.5rem;font-weight:400;margin-top:-.4rem}
+.formcard .showpw input{width:auto;padding:0;accent-color:var(--road)}
 .formcard .btn{justify-self:start}
 .alert{margin:0;background:#fde8e8;color:#7f1d1d;border:1px solid #f3b4b4;padding:.7rem .9rem;border-radius:8px}
+
+/* login page: heading on the left, form on the right, everything fits on one screen */
+body.loginpage{min-height:100vh;display:flex;flex-direction:column}
+.loginpage .section{flex:1;display:flex;align-items:center;padding:1.5rem 0}
+.loginpage .loginwrap{width:100%;align-items:center}
+.loginpage .loginwrap h2{font-size:clamp(2rem,4vw,3rem)}
+.loginpage .loginwrap .intro{margin:0}
+.loginpage .formcard{width:min(100%,460px);justify-self:end;gap:.8rem;padding:1.35rem}
+.loginpage footer.site{padding:1rem 0}
+@media (min-width:861px) and (min-height:600px){body.loginpage{height:100vh;overflow:hidden}}
 
 footer.site{background:var(--ink);color:#cfdad3;padding:2rem 0;font-size:.9rem}
 footer.site .wrap{display:flex;gap:.5rem 1.5rem;flex-wrap:wrap;align-items:baseline}

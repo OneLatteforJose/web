@@ -109,13 +109,13 @@ public_header($as === 'provider' ? 'Become a provider' : 'Create an account');
       </div>
       <?php if ($submitted): ?>
         <h2>Application received</h2>
-        <p class="intro">Thank you. The manager of your city or an admin will check your details and decide. You can <a href="index.php#login">log in</a> with your email and password at any time to see where your application stands.</p>
+        <p class="intro">Thank you. The manager of your city or an admin will check your details and decide. You can <a href="login.php">log in</a> with your email and password at any time to see where your application stands.</p>
       <?php elseif ($as === 'provider'): ?>
         <h2>Become a provider</h2>
-        <p class="intro">Tell us about you and what you offer. A manager in your city or an admin checks every application before the account is switched on. Already registered? <a href="index.php#login">Log in</a>.</p>
+        <p class="intro">Tell us about you and what you offer. A manager in your city or an admin checks every application before the account is switched on. Already registered? <a href="login.php">Log in</a>.</p>
       <?php else: ?>
         <h2>Create an account</h2>
-        <p class="intro">Sign up to book vehicles or request services in your area. Already registered? <a href="index.php#login">Log in</a>.</p>
+        <p class="intro">Sign up to book vehicles or request services in your area. Already registered? <a href="login.php">Log in</a>.</p>
       <?php endif; ?>
     </div>
     <?php if ($submitted): ?>
