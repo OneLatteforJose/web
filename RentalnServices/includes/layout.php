@@ -75,10 +75,11 @@ function page_header(string $title, string $active = ''): void {
     require_once __DIR__ . '/applications.php';
     [$pb, $pr] = pending_counts();
     $pa = pending_applications(db());
+    $ps = pending_service_submissions(db());   // new services providers propose, waiting for a decision
     shell_header($title, $active, [
         'dashboard.php' => ['Dashboard',           'home'],
         'accounts.php'  => ['Accounts',            'user'],
-        'applications.php' => ['Applications',     'briefcase', $pa],
+        'applications.php' => ['Applications',     'briefcase', $pa + $ps],
         'partners.php'  => ['Partnerships',        'users'],
         'catalog.php'   => ['Vehicles & Services', 'car'],
         'activity.php'  => ['Activity',            'calendar'],
@@ -88,8 +89,8 @@ function page_header(string $title, string $active = ''): void {
     ], [
         'suffix'   => 'Admin',
         'name'     => $_SESSION['user']['name'] ?? 'Admin',
-        'bell'     => $pb + $pr + $pa,
-        'bellHref' => ($pb + $pr === 0 && $pa > 0) ? 'applications.php' : 'activity.php?tab=' . ($pb === 0 && $pr > 0 ? 'requests' : 'bookings') . '&status=pending',
+        'bell'     => $pb + $pr + $pa + $ps,
+        'bellHref' => ($pb + $pr === 0 && $pa + $ps > 0) ? 'applications.php' . ($pa === 0 ? '?type=services' : '') : 'activity.php?tab=' . ($pb === 0 && $pr > 0 ? 'requests' : 'bookings') . '&status=pending',
     ]);
 }
 

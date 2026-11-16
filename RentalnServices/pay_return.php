@@ -1,8 +1,8 @@
 <?php
-// PayMongo sends the customer back here (success_url and cancel_url). We never trust the redirect itself:
-// the payment is checked with PayMongo before a booking is created.
+// Xendit sends the customer back here (success and failure redirect). We never trust the redirect itself:
+// the payment is checked with Xendit before a booking is created.
 require_once __DIR__ . '/includes/user.php';
-require_once __DIR__ . '/includes/paymongo.php';
+require_once __DIR__ . '/includes/xendit.php';
 $me = require_user();
 $pdo = db();
 
@@ -26,8 +26,8 @@ if ($c['status'] === 'paid' && $c['booking_id']) {
     go_to_booking((int)$c['booking_id']);
 }
 
-$session = $c['provider_session_id'] && paymongo_enabled() ? paymongo_get_session($c['provider_session_id']) : null;
-if ($session && ($bookingId = finalize_checkout($pdo, $cid, $session))) {
+$invoice = $c['provider_session_id'] && xendit_enabled() ? xendit_get_invoice($c['provider_session_id']) : null;
+if ($invoice && ($bookingId = finalize_checkout($pdo, $cid, $invoice))) {
     go_to_booking($bookingId);
 }
 
@@ -38,7 +38,7 @@ if (!empty($_GET['cancelled'])) {
     exit;
 }
 
-// Paid on PayMongo's side but not confirmed yet (e.g. GCash still processing), or not paid.
+// Paid on Xendit's side but not confirmed yet (e.g. GCash still processing), or not paid.
 user_header('Payment', 'bookings.php');
 ?>
 <section class="panel">

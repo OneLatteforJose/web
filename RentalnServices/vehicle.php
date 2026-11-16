@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/includes/user.php';
+require_once __DIR__ . '/includes/booking_rules.php';
 $me = require_user();
 $pdo = db();
 
@@ -36,7 +37,7 @@ user_header($v['model'], 'vehicles.php', ['back' => 'vehicles.php']);
   </div>
   <dl class="kv">
     <dt>Capacity</dt><dd><?= e($v['capacity'] ?: '-') ?></dd>
-    <dt>Driver</dt><dd><?= $v['own_driver_id'] ? 'A driver is available with this vehicle' : 'Drive it yourself, or ask for a driver when booking' ?></dd>
+    <dt>Driver</dt><dd><?= $v['own_driver_id'] ? 'A driver is available with this vehicle' : 'Drive it yourself, or ask for a driver when booking (the vehicle owner drives)' ?></dd>
     <dt>Provider</dt><dd><?= e($v['business_name'] ?: $v['provider']) ?></dd>
     <dt>Based in</dt><dd><?= e($v['barangay'] . ', ' . $v['city']) ?></dd>
     <dt>Availability</dt><dd><?= $v['status'] === 'unavailable' ? 'Not available right now' : 'Available, pick your dates when booking' ?></dd>
@@ -49,6 +50,7 @@ user_header($v['model'], 'vehicles.php', ['back' => 'vehicles.php']);
 <?php else: ?>
 <a class="btn" href="book.php?id=<?= (int)$v['id'] ?>">Book now</a>
 <p class="hint">Pay online with GCash, Maya or a card. You are refunded in full if the manager cannot accept the booking.</p>
+<p class="hint">Pick-up is available <?= BOOKING_LEAD_HOURS ?> hours after you book: <?= e(lead_text()) ?>.</p>
 <?php endif; ?>
 </div>
 

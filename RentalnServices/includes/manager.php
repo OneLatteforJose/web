@@ -49,10 +49,11 @@ function manager_header(string $title, string $active = ''): void {
     $m = require_manager();
     [$pb, $pr] = manager_pending(db(), $m);
     $pa = pending_applications(db(), $m['key']);   // provider sign-ups in this city waiting for a decision
+    $ps = pending_service_submissions(db(), $m['key']);   // new services providers in this city propose
     shell_header($title, $active, [
         'dashboard.php' => ['Dashboard', 'home'],
         'approvals.php' => ['Approvals', 'calendar'],
-        'applications.php' => ['Applications', 'briefcase', $pa],
+        'applications.php' => ['Applications', 'briefcase', $pa + $ps],
         'vehicles.php'  => ['Vehicles',  'car'],
         'services.php'  => ['Services',  'wrench'],
         'providers.php' => ['Providers', 'briefcase'],
@@ -60,8 +61,8 @@ function manager_header(string $title, string $active = ''): void {
         'suffix'   => 'Manager',
         'name'     => $m['full_name'],
         'city'     => $m['city'] . ', ' . $m['province'],
-        'bell'     => $pb + $pr + $pa,
-        'bellHref' => ($pb + $pr === 0 && $pa > 0) ? 'applications.php' : 'approvals.php?tab=' . ($pb === 0 && $pr > 0 ? 'requests' : 'bookings') . '&status=pending',
+        'bell'     => $pb + $pr + $pa + $ps,
+        'bellHref' => ($pb + $pr === 0 && $pa + $ps > 0) ? 'applications.php' . ($pa === 0 ? '?type=services' : '') : 'approvals.php?tab=' . ($pb === 0 && $pr > 0 ? 'requests' : 'bookings') . '&status=pending',
     ]);
 }
 

@@ -69,7 +69,7 @@ function provider_header(string $title, string $active = ''): void {
 function provider_jobs_sql(): string {
     return "(SELECT 'booking' AS kind, b.id, b.status, b.start_at AS at, v.model AS title, u.full_name AS customer, u.phone AS customer_phone,
                     b.total_price AS total, b.created_at,
-                    CASE WHEN v.provider_id = ? AND ds.provider_id = ? THEN 'Vehicle and driver' WHEN v.provider_id = ? THEN 'Vehicle' ELSE 'Driver' END AS yours
+                    CASE WHEN v.provider_id = ? AND (ds.provider_id = ? OR (b.with_driver = 1 AND b.driver_service_id IS NULL)) THEN 'Vehicle and driver' WHEN v.provider_id = ? THEN 'Vehicle' ELSE 'Driver' END AS yours
              FROM bookings b JOIN vehicles v ON v.id = b.vehicle_id JOIN users u ON u.id = b.user_id LEFT JOIN services ds ON ds.id = b.driver_service_id
              WHERE v.provider_id = ? OR ds.provider_id = ?)
             UNION ALL
@@ -93,4 +93,22 @@ function provider_customer(array $job): string {
 
 function fmt_when(?string $dt): string {
     return $dt ? date('M j, Y g:i A', strtotime($dt)) : '-';
+}
+
+// Barangays of the provider's own city: [['id' => .., 'barangay' => ..], ...]. A new service can be offered in any of them.
+function provider_barangays(PDO $pdo, array $p): array {
+    $st = $pdo->prepare("SELECT id, barangay FROM areas WHERE province = ? AND city_municipality = ? ORDER BY barangay");
+    $st->execute([$p['province'], $p['city']]);
+    return $st->fetchAll();
+}
+
+// [waiting for approval, rejected] service submissions of this provider. 0, 0 if the table is not created yet.
+function provider_submission_counts(PDO $pdo, int $me): array {
+    try {
+        $st = $pdo->prepare("SELECT COALESCE(SUM(status = 'pending'), 0), COALESCE(SUM(status = 'rejected'), 0) FROM service_submissions WHERE provider_id = ?");
+        $st->execute([$me]);
+        return array_map('intval', $st->fetch(PDO::FETCH_NUM));
+    } catch (Throwable $e) {
+        return [0, 0];
+    }
 }

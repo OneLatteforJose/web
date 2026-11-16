@@ -14,6 +14,11 @@ a{color:inherit}
 
 /* top bar */
 .topbar{border-bottom:1px solid var(--line)}
+/* the menu stays at the top while the page scrolls (wide screens; on phones it would take too much room) */
+section[id]{scroll-margin-top:5.5rem}
+@media (min-width:700px){
+  .topbar{position:sticky;top:0;z-index:50;background:rgba(245,247,242,.94);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+}
 .topbar .wrap{display:flex;align-items:center;gap:1.25rem;padding-top:.9rem;padding-bottom:.9rem;flex-wrap:wrap}
 .brand{font:700 1.25rem var(--display);text-decoration:none;color:var(--road);margin-right:auto}
 .topnav{display:flex;gap:1.1rem;flex-wrap:wrap}

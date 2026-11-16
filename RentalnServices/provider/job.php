@@ -63,7 +63,7 @@ if ($type === 'booking') {
         'Vehicle'  => ucfirst($j['vtype']) . ': ' . $j['title'] . ' (' . $j['plate_no'] . ')',
         'Starts'   => fmt_when($j['start_at']),
         'Ends'     => fmt_when($j['end_at']),
-        'Driver'   => $j['with_driver'] ? ($j['driver_name'] ? $j['driver_name'] . ' (' . $j['driver_title'] . ')' : 'Requested, not assigned yet') : 'Drive yourself',
+        'Driver'   => $j['with_driver'] ? ($j['driver_name'] ? $j['driver_name'] . ' (' . $j['driver_title'] . ')' : ((int)$j['vprov'] === (int)$me ? 'You drive: you own the vehicle' : 'The vehicle owner drives')) : 'Drive yourself',
         'Customer' => provider_customer($j) . ($known && $j['customer_phone'] ? ', ' . $j['customer_phone'] : ''),
         'Pickup'   => $known ? ($j['pickup_street'] ?: '-') : 'Shown once a manager approves the booking',
         'Area'     => $where,

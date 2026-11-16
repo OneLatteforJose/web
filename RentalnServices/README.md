@@ -20,22 +20,21 @@ Each city or municipality has a manager who approves bookings and requests. Prov
    ```
    C:\xampp\php\php.exe database\import_psgc.php
    ```
-6. Open <http://localhost/RentalnServices/>. Everyone logs in on `login.php` (the **Log in** button in the top menu); each role lands on its own page. Customers use **Sign up** (`register.php`) to create an account.
+6. Open <http://localhost/RentalnServices/>. Admins and managers log in at the bottom of the page (each lands on their own dashboard). Customers use **Sign up** (`register.php`) to create an account.
 
 Database settings default to `localhost`, port `3306`, user `root`, no password.
 To change them, copy `config.example.php` to `config.local.php` and edit it. `config.local.php` is git-ignored.
 
 ## Customer app (project root)
 
-A phone-first app with a bottom navigation bar (Home, Services, Vehicles, Bookings, Profile) that becomes a top menu on larger screens.
+A phone-first app with a bottom navigation bar (Home, Services, Bookings, Profile) that becomes a top menu on larger screens.
 
 | Page | What it does |
 | --- | --- |
 | `home.php` | Search, categories, popular services in your city, and your upcoming bookings |
-| `services.php` | Browse services in your city, with search and filters |
-| `vehicles.php` | Browse vehicles to rent (your city or all cities), with search and type filters. Old `services.php?tab=vehicles` links forward here |
+| `services.php` | Browse services (your city) or vehicles (your city or all cities), with search and filters |
 | `service.php`, `vehicle.php` | Details and recent reviews. On a vehicle, Book now opens `book.php` (service requests are not bookable yet) |
-| `book.php`, `pay_return.php` | Pick dates, pay on PayMongo (GCash, Maya, card); the booking is created only after the payment is confirmed |
+| `book.php`, `pay_return.php` | Pick dates, pay on Xendit (GCash, Maya, card); the booking is created only after the payment is confirmed |
 | `bookings.php`, `order.php` | Your bookings and requests; cancel a pending one (a paid online payment is marked refunded); review a completed one |
 | `profile.php` | Edit your details, address and email, change your password, log out |
 
@@ -59,6 +58,23 @@ business or trade name, email, phone, address, what they will offer and a passwo
 
 **Upgrading an older database:** run once `C:\xampp\php\php.exe database\migrate_provider_applications.php`. It adds the new columns to
 `provider_profiles` and marks every existing provider as approved. Fresh installs do not need it.
+
+## Providers propose services, and the vehicle owner drives
+
+**New services need approval.** On `provider/services.php` a provider can propose a new service: category (with a short description of each),
+title, rate, barangay in their own city and optional details. It is saved as a **submission**, not as a service, so customers never see it.
+The manager of the city or an admin approves it on **Applications > Service listings** (`manager/applications.php`,
+`admin/applications.php`); approving creates the real service, switched on. A rejection needs a short reason, which the provider sees and can
+fix and send again. Whoever acts first decides. A provider can withdraw a waiting proposal and may have up to 10 waiting at a time.
+Managers can still add services directly, with no approval step.
+
+**Upgrading an older database:** run once `C:\xampp\php\php.exe database\migrate_service_submissions.php` (it creates the
+`service_submissions` table; fresh installs of `booking_and_services.sql` already have it).
+
+**A driver is always available.** When a customer asks for a driver and the vehicle has no separate driver service, the owner of the vehicle
+drives. Nothing has to be set up first, and the manager is never blocked from approving: the approve form just shows "The vehicle owner drives",
+with an optional list of other drivers in the city to choose from instead. Providers see these jobs as "Vehicle and driver". Vehicles that
+have their own driver service still use it.
 
 ## Accounts and roles
 
@@ -145,6 +161,16 @@ own vehicles, services and jobs. A deactivated provider, or one whose applicatio
 | `earnings.php` | What customers paid for your vehicles and services: this month, last month, all time, refunded, the last six months, and every payment. Driver-only jobs are not counted, because nothing records the driver's share |
 | `profile.php` | Your details, business name and description, and password. Your barangay is set by an admin or manager |
 
+## Vehicle pick-up lead time
+
+A vehicle booking cannot start sooner than **3 hours** after it is made: 1 hour for the manager to approve it, then 2 hours to prepare the vehicle.
+The booking form only offers pick-up times from that point on, and the server checks it again. The vehicle page tells customers up front.
+On a pending booking the manager sees the time to decide by, and a warning if the pick-up is less than 2 hours away.
+The numbers live in one place, `includes/booking_rules.php`.
+
+All times use one clock, **Asia/Manila**, for both PHP and MySQL (XAMPP ships with Europe/Berlin, which would put the 3 hours in the wrong place).
+To use another zone, add `define('APP_TIMEZONE', 'Your/Zone');` to `config.local.php`.
+
 ## Project layout
 
 ```
@@ -164,16 +190,19 @@ includes/            db, auth, layout, areas, reports, profile, manager, provide
 assets/              style.css (admin and manager), landing.css (public), app.css (customer app), areas.js (area dropdowns), area-search.js (city search box)
 ```
 
-## Online payment (PayMongo)
+## Online payment (Xendit)
 
-Vehicle bookings are paid through PayMongo Checkout (GCash, Maya, GrabPay, cards). Flow: `book.php` saves a **checkout** (this holds the dates
-for 45 minutes) and sends the customer to PayMongo. On return, `pay_return.php` asks PayMongo whether it was paid, and only then creates the
-booking (`pending`, for the city manager) and a `paid` payment. `paymongo_webhook.php` does the same if the customer never comes back.
-Cancelling a pending booking (`order.php`) or rejecting one (`manager/booking.php`) refunds the money through PayMongo.
+Vehicle bookings are paid through a Xendit invoice page (GCash, Maya, GrabPay, ShopeePay, cards). Flow: `book.php` saves a **checkout** (this holds the dates
+for 45 minutes) and sends the customer to Xendit. On return, `pay_return.php` asks Xendit whether the invoice was paid, and only then creates the
+booking (`pending`, for the city manager) and a `paid` payment. `xendit_webhook.php` does the same if the customer never comes back.
+Cancelling a pending booking (`order.php`) or rejecting one (`manager/booking.php`) asks Xendit to refund the money; if a channel cannot be
+refunded by API, the booking is still cancelled and the screen says to refund it from the Xendit dashboard.
 
 1. Run `migrations/002_checkouts.sql` once (fresh installs of `booking_and_services.sql` already have the table).
-2. Create a PayMongo account, copy the **test** secret key (`sk_test_...`) from Developers > API Keys, and put it in `config.local.php`
-   (see `config.example.php`). Use the `sk_live_` key only after PayMongo activates your account.
+2. Create a free Xendit account (Philippines). Test mode needs no activation. In Settings > Developers > API keys, create a **development** secret key with
+   Money-in "Write" permission, and put it in `config.local.php` as `XENDIT_SECRET_KEY` (see `config.example.php`).
 3. Needs the PHP `curl` extension (on in XAMPP; remove `;` before `extension=curl` in php.ini if not).
-4. Webhook (optional, needs a public HTTPS address): register `https://YOUR-SITE/paymongo_webhook.php` for `checkout_session.payment.paid`
-   and set `PAYMONGO_WEBHOOK_SECRET`.
+3b. On plain `http://localhost` Xendit may refuse the return address. The site then retries without it and uses `pay_wait.php`, which waits for the payment and continues by itself (no tunnel needed). A public address with `APP_URL` is only needed for the webhook.
+4. Testing: on the Xendit page choose GCash/Maya/card. In test mode Xendit shows a simulator to approve the payment.
+5. Webhook (optional, needs a public HTTPS address, e.g. ngrok): set "Invoices paid" callback to `https://YOUR-SITE/xendit_webhook.php` and copy the
+   callback verification token into `XENDIT_CALLBACK_TOKEN`.

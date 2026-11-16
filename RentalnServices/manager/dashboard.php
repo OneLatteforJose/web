@@ -22,6 +22,7 @@ $stat = function (string $sql) use ($pdo, $cond, $cp): array {
 [$pTotal, $pActive] = $stat("SELECT COUNT(*), COALESCE(SUM(u.is_active), 0) FROM users u JOIN areas a ON a.id = u.area_id LEFT JOIN provider_profiles pp ON pp.user_id = u.id
                             WHERE u.role = 'provider' AND COALESCE(pp.application_status, 'approved') = 'approved'");
 $waitingApplications = pending_applications($pdo, $m['key']);
+$waitingServices = pending_service_submissions($pdo, $m['key']);
 
 $monthStart = date('Y-m-01 00:00:00');
 $monthEnd   = (new DateTimeImmutable($monthStart))->modify('+1 month')->format('Y-m-d H:i:s');
@@ -75,6 +76,9 @@ $list = function (array $items, callable $right) use ($kind): void {
 manager_header('Dashboard', 'dashboard.php');
 if ($waitingApplications > 0) {
     echo '<p class="note"><b>' . plural($waitingApplications, 'provider application') . '</b> in ' . e($m['city']) . ' waiting for you. <a href="applications.php">Review them</a></p>';
+}
+if ($waitingServices > 0) {
+    echo '<p class="note"><b>' . plural($waitingServices, 'new service') . '</b> proposed by providers in ' . e($m['city']) . ', waiting for you. <a href="applications.php?type=services">Review them</a></p>';
 }
 if ($pTotal === 0) {
     echo '<p class="note">No providers live in ' . e($m['city']) . ' yet. An admin creates provider accounts; once one exists you can add their vehicles and services here.</p>';

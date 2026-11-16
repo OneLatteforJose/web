@@ -50,7 +50,12 @@ $kind = ['booking' => ['calendar', 'Vehicle booking', 'booking'], 'request' => [
 
 provider_header('Dashboard', 'dashboard.php');
 if ($vTotal + $sTotal === 0) {
-    echo '<p class="note">You have no vehicles or services listed yet. The manager of ' . e($p['city'] ?: 'your city') . ' adds them for you. Ask them to list what you offer.</p>';
+    echo '<p class="note">You have no vehicles or services listed yet. You can propose a service on the <a href="services.php">Services</a> page, and the manager of ' . e($p['city'] ?: 'your city') . ' or an admin approves it. The manager adds vehicles for you.</p>';
+}
+[$subWaiting, $subRejected] = provider_submission_counts($pdo, $me);
+if ($subWaiting + $subRejected > 0) {
+    echo '<p class="note">' . ($subWaiting ? '<b>' . plural($subWaiting, 'service') . '</b> waiting for approval. ' : '')
+       . ($subRejected ? '<b>' . plural($subRejected, 'submission') . '</b> not approved: see the reason on the <a href="services.php">Services</a> page.' : '') . '</p>';
 }
 echo '<div class="stats">'
    . stat_card('calendar', $soon, 'Coming up', 'approved, next 7 days', false, 'jobs.php?status=approved')

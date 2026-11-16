@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/manager.php';
-require_once __DIR__ . '/../includes/paymongo.php';
+require_once __DIR__ . '/../includes/booking_rules.php';
+require_once __DIR__ . '/../includes/xendit.php';
 $m = require_manager();
 $pdo = db();
 $id = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
@@ -45,11 +46,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($b['own_driver_id']) {
                     $driver = (int)$b['own_driver_id'];   // the vehicle comes with its own driver
                 } else {
-                    $driver = (int)($_POST['driver_service_id'] ?? 0);
-                    $ok = $driver && db_value($pdo,
+                    // No separate driver on file: the owner of the vehicle drives, so a driver is always available and
+                    // driver_service_id stays empty. The manager may still pick another driver from the city.
+                    $driver = (int)($_POST['driver_service_id'] ?? 0) ?: null;
+                    if ($driver && !db_value($pdo,
                         "SELECT 1 FROM services s JOIN areas a ON a.id = s.area_id WHERE s.id = ? AND s.category = 'driver' AND s.status = 'available'$cond",
-                        array_merge([$driver], $cp));
-                    if (!$ok) $err = 'Choose an available driver from your city for this booking.';
+                        array_merge([$driver], $cp))) {
+                        $err = 'Choose an available driver from your city, or leave it as the vehicle owner.';
+                    }
                 }
             }
             if (!$err) {
@@ -81,8 +85,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($done !== '') {
         $pdo->commit();
-        if ($action === 'reject' && !refund_booking_payments($pdo, $id)) {   // real refund through PayMongo
-            $done .= ' The online refund did not go through; check PayMongo and refund payment manually.';
+        if ($action === 'reject' && !refund_booking_payments($pdo, $id)) {   // real refund through Xendit
+            $done .= ' The online refund did not go through; check Xendit and refund payment manually.';
         }
         flash($done);
         header('Location: booking.php?id=' . $id);
@@ -115,8 +119,8 @@ $pay->execute([$id]);
 $payments = $pay->fetchAll();
 $days = max(1, (int)ceil((strtotime($b['end_at']) - strtotime($b['start_at'])) / 86400));
 $started = strtotime($b['start_at']) <= time();
-$needsDriver = $b['with_driver'] && !$b['driver_service_id'] && !$b['own_driver_id'];
-$drivers = $needsDriver && $b['status'] === 'pending' ? my_driver_services($pdo, $m) : [];
+$ownerDrives = $b['with_driver'] && !$b['driver_service_id'] && !$b['own_driver_id'];   // nobody else is assigned: the vehicle's owner drives
+$drivers = $ownerDrives && $b['status'] === 'pending' ? my_driver_services($pdo, $m) : [];
 
 manager_header('Booking #' . $id, 'approvals.php');
 if ($err) echo '<p class="err">' . e($err) . '</p>';
@@ -131,7 +135,7 @@ if ($err) echo '<p class="err">' . e($err) . '</p>';
 
 <?php
 $driverText = $b['with_driver']
-    ? ($b['driver_title'] ? $b['driver_title'] . ' (' . $b['driver_provider'] . ')' : ($b['own_driver_id'] ? "The vehicle's own driver" : 'Needed, not chosen yet'))
+    ? ($b['driver_title'] ? $b['driver_title'] . ' (' . $b['driver_provider'] . ')' : ($b['own_driver_id'] ? "The vehicle's own driver" : 'The vehicle owner, ' . $b['provider'] . ', drives'))
     : 'No driver';
 render_kv([
     'Status'          => ['html' => '<span class="badge badge-' . e($b['status']) . '">' . e(ucfirst($b['status'])) . '</span>'],
@@ -152,18 +156,28 @@ render_kv([
 <h2>Decision</h2>
 <div class="panel">
 <?php if ($b['status'] === 'pending'): ?>
+  <?php
+    $decideBy = strtotime($b['created_at']) + BOOKING_APPROVAL_HOURS * 3600;
+    $minsLeft = (int)floor(($decideBy - time()) / 60);
+    $pickupIn = (int)floor((strtotime($b['start_at']) - time()) / 60);
+  ?>
+  <p class="<?= $minsLeft < 0 ? 'err' : 'muted' ?>" style="margin-top:0">
+    <?php if ($minsLeft >= 0): ?>Please decide within <?= BOOKING_APPROVAL_HOURS ?> hour of the request, by <b><?= e(date('g:i A', $decideBy)) ?></b> (<?= $minsLeft ?> min left).
+    <?php else: ?>Overdue by <?= -$minsLeft ?> min. The customer is waiting for an answer.<?php endif; ?>
+    <?php if ($pickupIn < BOOKING_PREP_HOURS * 60): ?>Pick-up is <?= $pickupIn > 0 ? 'in ' . $pickupIn . ' min' : 'already due' ?>, which is less than the <?= BOOKING_PREP_HOURS ?> hours normally needed to prepare the vehicle.<?php endif; ?>
+  </p>
   <div class="actions">
     <form method="post">
       <?= csrf_field() ?><input type="hidden" name="id" value="<?= $id ?>"><input type="hidden" name="action" value="approve">
-      <?php if ($needsDriver): ?>
-        <label>Driver for this trip
-          <select name="driver_service_id" required>
-            <option value="">Choose a driver</option>
+      <?php if ($ownerDrives && $drivers): ?>
+        <label>Who drives
+          <select name="driver_service_id">
+            <option value="">The vehicle owner, <?= e($b['provider']) ?>, drives</option>
             <?php foreach ($drivers as $d): ?><option value="<?= (int)$d['id'] ?>"><?= e($d['provider'] . ' - ' . $d['title']) ?></option><?php endforeach; ?>
           </select>
         </label>
       <?php endif; ?>
-      <button <?= ($needsDriver && !$drivers) ? 'disabled' : '' ?>>Approve booking</button>
+      <button>Approve booking</button>
     </form>
     <form method="post" onsubmit="return confirm('Reject this booking?')">
       <?= csrf_field() ?><input type="hidden" name="id" value="<?= $id ?>"><input type="hidden" name="action" value="reject">
@@ -171,7 +185,7 @@ render_kv([
       <button class="danger">Reject</button>
     </form>
   </div>
-  <?php if ($needsDriver && !$drivers): ?><p class="muted" style="margin-bottom:0">No available driver service in your city. Add one on the Services page first.</p><?php endif; ?>
+  <?php if ($ownerDrives && !$drivers): ?><p class="muted" style="margin-bottom:0">The customer asked for a driver. The vehicle owner, <?= e($b['provider']) ?>, drives.</p><?php endif; ?>
 <?php elseif ($b['status'] === 'approved'): ?>
   <?php if ($started): ?>
     <form method="post" class="actions" onsubmit="return confirm('Mark this booking as completed?')">

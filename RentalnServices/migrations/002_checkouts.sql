@@ -1,6 +1,6 @@
 -- Run once in phpMyAdmin (database booking_and_services). Fresh installs of booking_and_services.sql already include it.
 -- A checkout is a booking the customer is paying for. The real booking and its payment are created only after
--- PayMongo confirms the money, so unpaid attempts never reach the manager.
+-- the payment gateway confirms the money, so unpaid attempts never reach the manager.
 CREATE TABLE IF NOT EXISTS `checkouts`  (
   `id` int NOT NULL AUTO_INCREMENT,
   `user_id` int NOT NULL,

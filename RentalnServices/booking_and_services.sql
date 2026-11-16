@@ -238,6 +238,42 @@ CREATE TABLE `services`  (
 -- ----------------------------
 
 -- ----------------------------
+-- Table structure for service_submissions
+-- A provider proposes a new service here. It becomes a real row in `services` only when the manager of the
+-- city or an admin approves it (service_id then points at the created service).
+-- ----------------------------
+DROP TABLE IF EXISTS `service_submissions`;
+CREATE TABLE `service_submissions`  (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `provider_id` int NOT NULL,
+  `area_id` int NOT NULL,
+  `category` enum('handyman','plumbing','cleaning','electrical','beauty','laundry','gardening','driver','body_massage') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `title` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL,
+  `rate` decimal(10, 2) NOT NULL,
+  `status` enum('pending','approved','rejected') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'pending',
+  `review_note` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL,
+  `reviewed_by` int NULL DEFAULT NULL,
+  `reviewed_at` datetime NULL DEFAULT NULL,
+  `service_id` int NULL DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_provider_status`(`provider_id` ASC, `status` ASC, `id` ASC) USING BTREE,
+  INDEX `idx_area_status`(`area_id` ASC, `status` ASC, `id` ASC) USING BTREE,
+  INDEX `idx_status`(`status` ASC, `id` ASC) USING BTREE,
+  INDEX `reviewed_by`(`reviewed_by` ASC) USING BTREE,
+  INDEX `service_id`(`service_id` ASC) USING BTREE,
+  CONSTRAINT `service_submissions_ibfk_1` FOREIGN KEY (`provider_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  CONSTRAINT `service_submissions_ibfk_2` FOREIGN KEY (`area_id`) REFERENCES `areas` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  CONSTRAINT `service_submissions_ibfk_3` FOREIGN KEY (`reviewed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT,
+  CONSTRAINT `service_submissions_ibfk_4` FOREIGN KEY (`service_id`) REFERENCES `services` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of service_submissions
+-- ----------------------------
+
+-- ----------------------------
 -- Table structure for users
 -- ----------------------------
 DROP TABLE IF EXISTS `users`;

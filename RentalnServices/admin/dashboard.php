@@ -10,6 +10,7 @@ $roles  = $pdo->query("SELECT u.role, COUNT(*) AS total, SUM(u.is_active) AS act
                        LEFT JOIN provider_profiles pp ON pp.user_id = u.id AND u.role = 'provider'
                        WHERE COALESCE(pp.application_status, 'approved') = 'approved' GROUP BY u.role")->fetchAll(PDO::FETCH_UNIQUE);
 $waitingApplications = pending_applications($pdo);
+$waitingServices = pending_service_submissions($pdo);
 $veh    = $pdo->query("SELECT COUNT(*) AS total, COALESCE(SUM(status='available'),0) AS available FROM vehicles")->fetch();
 $svc    = $pdo->query("SELECT COUNT(*) AS total, COALESCE(SUM(status='available'),0) AS available FROM services")->fetch();
 $book   = $pdo->query("SELECT status, COUNT(*) FROM bookings GROUP BY status")->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -62,6 +63,9 @@ page_header('Dashboard', 'dashboard.php');
 
 if ($waitingApplications > 0) {
     echo '<p class="note"><b>' . plural($waitingApplications, 'provider application') . '</b> waiting for approval. <a href="applications.php">Review them</a></p>';
+}
+if ($waitingServices > 0) {
+    echo '<p class="note"><b>' . plural($waitingServices, 'new service') . '</b> proposed by providers, waiting for approval. <a href="applications.php?type=services">Review them</a></p>';
 }
 if ($noManager) {
     echo '<p class="err">These cities already have accounts, vehicles, services or bookings but no active manager, so nobody can approve requests there: '

@@ -43,6 +43,9 @@ if ($pdo) {
         $hasApp = (int)$pdo->query("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'provider_profiles' AND column_name = 'application_status'")->fetchColumn();
         check('Provider sign-up and approval is set up', (bool)$hasApp,
               $hasApp ? 'provider_profiles has the application columns' : 'Providers cannot sign up yet. Fix: in the project folder run  C:\\xampp\\php\\php.exe database\\migrate_provider_applications.php');
+        $hasSub = (int)$pdo->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'service_submissions'")->fetchColumn();
+        check('Providers can propose new services', (bool)$hasSub,
+              $hasSub ? 'the service_submissions table exists' : 'Providers cannot propose services yet. Fix: in the project folder run  C:\\xampp\\php\\php.exe database\\migrate_service_submissions.php');
         $accounts = $pdo->query(
             "SELECT u.id, u.email, u.role, u.is_active, u.area_id, a.barangay, a.city_municipality
              FROM users u LEFT JOIN areas a ON a.id = u.area_id ORDER BY FIELD(u.role, 'admin', 'manager', 'customer', 'user', 'provider'), u.id LIMIT 60"

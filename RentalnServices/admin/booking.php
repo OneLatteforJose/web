@@ -74,7 +74,7 @@ page_header('Booking #' . $id, 'activity.php');
     'End'    => $b['end_at'],
     'Pickup' => $place($b['booking_barangay'], $b['booking_city'], $b['pickup_street']),
     'Approving city' => $b['booking_city'] . ', ' . $b['booking_province'],
-    'Driver' => $b['with_driver'] ? ($b['driver_title'] ? $b['driver_provider'] . ' (' . $b['driver_title'] . ')' : 'Requested, not assigned yet') : 'Drive yourself',
+    'Driver' => $b['with_driver'] ? ($b['driver_title'] ? $b['driver_provider'] . ' (' . $b['driver_title'] . ')' : 'The vehicle owner, ' . $b['provider'] . ', drives') : 'Drive yourself',
     'Reviewed by (manager)' => $b['reviewer'],
 ]); ?>
 

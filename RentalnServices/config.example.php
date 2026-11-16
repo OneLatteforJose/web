@@ -7,7 +7,8 @@ define('DB_NAME', 'booking_and_services');
 define('DB_USER', 'root');
 define('DB_PASS', '');
 
-// Online payment (PayMongo, https://dashboard.paymongo.com/developers). Use the sk_test_ key until you go live.
-define('PAYMONGO_SECRET_KEY', 'sk_test_xxxxxxxxxxxxxxxxxxxxxxxx');
-define('PAYMONGO_WEBHOOK_SECRET', '');   // optional, only for paymongo_webhook.php (needs a public HTTPS address)
+// Online payment (Xendit, https://dashboard.xendit.co > Settings > Developers > API keys). Use the TEST/development key
+// (starts with xnd_development_) until you go live. Give the key "Money-in products: Write" permission.
+define('XENDIT_SECRET_KEY', 'xnd_development_xxxxxxxxxxxxxxxxxxxxxxxx');
+define('XENDIT_CALLBACK_TOKEN', '');   // optional, only for xendit_webhook.php (needs a public HTTPS address)
 // define('APP_URL', 'https://your-site.example/RentalnServices');   // only if the automatic address is wrong

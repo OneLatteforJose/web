@@ -1,7 +1,7 @@
 <?php
 // One of the customer's own bookings (type=booking) or service requests (type=request).
 require_once __DIR__ . '/includes/user.php';
-require_once __DIR__ . '/includes/paymongo.php';
+require_once __DIR__ . '/includes/xendit.php';
 $me = require_user();
 $pdo = db();
 
@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->commit();
                 $refunded = true;
                 if ($type === 'booking') {
-                    $refunded = refund_booking_payments($pdo, $id);   // real refund through PayMongo
+                    $refunded = refund_booking_payments($pdo, $id);   // real refund through Xendit
                 } else {
                     $pdo->prepare("UPDATE payments SET status = 'refunded' WHERE $payCol = ? AND status = 'paid'")->execute([$id]);
                 }
@@ -123,7 +123,7 @@ if ($err) echo '<p class="alert">' . e($err) . '</p>';
       <dt>Vehicle</dt><dd><?= e(ucfirst($o['vtype']) . ': ' . $o['title'] . ' (' . $o['plate_no'] . ')') ?></dd>
       <dt>When</dt><dd><?= e($when) ?></dd>
       <dt>Pickup</dt><dd><?= e($o['pickup_street'] ?: '-') ?></dd>
-      <dt>Driver</dt><dd><?= $o['with_driver'] ? e($o['driver_name'] ?: 'Will be assigned by the manager') : 'Drive yourself' ?></dd>
+      <dt>Driver</dt><dd><?= $o['with_driver'] ? e($o['driver_name'] ?: $o['provider'] . ' (the vehicle owner)' . ($o['status'] === 'pending' ? ', unless the manager assigns another driver' : '')) : 'Drive yourself' ?></dd>
     <?php else: ?>
       <dt>Service</dt><dd><?= e($o['title'] . ' (' . category_label($o['category']) . ')') ?></dd>
       <dt>When</dt><dd><?= e($when) ?></dd>
