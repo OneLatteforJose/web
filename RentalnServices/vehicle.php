@@ -25,9 +25,18 @@ $st = $pdo->prepare(
 );
 $st->execute([$id]);
 $reviews = $st->fetchAll();
+$state = vehicle_states($pdo, [$id])[$id] ?? null;
+$av = vehicle_availability($v, $state);
+// Approved trips still to come: the vehicle can be booked for other dates, so just tell the customer.
+$ub = $pdo->prepare("SELECT start_at, end_at FROM bookings WHERE vehicle_id = ? AND status = 'approved' AND end_at > ? ORDER BY start_at LIMIT 5");
+$ub->execute([$id, date('Y-m-d H:i:s')]);
+$booked = $ub->fetchAll();
 
 user_header($v['model'], 'vehicles.php', ['back' => 'vehicles.php']);
 ?>
+<?php if ($av['code'] !== 'available'): ?>
+<p class="alert" role="status"><strong><?= e($av['label']) ?>.</strong> <?= e($av['note']) ?></p>
+<?php endif; ?>
 <div class="cols">
 <section class="panel main">
   <div style="display:flex;gap:.8rem;align-items:center;margin-bottom:.7rem">
@@ -40,13 +49,14 @@ user_header($v['model'], 'vehicles.php', ['back' => 'vehicles.php']);
     <dt>Driver</dt><dd><?= $v['own_driver_id'] ? 'A driver is available with this vehicle' : 'Drive it yourself, or ask for a driver when booking (the vehicle owner drives)' ?></dd>
     <dt>Provider</dt><dd><?= e($v['business_name'] ?: $v['provider']) ?></dd>
     <dt>Based in</dt><dd><?= e($v['barangay'] . ', ' . $v['city']) ?></dd>
-    <dt>Availability</dt><dd><?= $v['status'] === 'unavailable' ? 'Not available right now' : 'Available, pick your dates when booking' ?></dd>
+    <dt>Availability</dt><dd><?= $av['code'] === 'available' ? 'Available, pick your dates when booking' : e($av['label']) ?></dd>
+    <?php if ($booked): ?><dt>Already booked</dt><dd><?php foreach ($booked as $b): ?><?= e(date('M j, g:i A', strtotime($b['start_at']))) ?> to <?= e(date('M j, g:i A', strtotime($b['end_at']))) ?><br><?php endforeach; ?></dd><?php endif; ?>
   </dl>
 </section>
 <div class="side">
 <p class="hint" style="margin-top:0">Vehicles can be rented from any city. The manager of the city where the vehicle is based confirms the booking.</p>
-<?php if ($v['status'] === 'unavailable'): ?>
-<button class="btn" disabled>Not available</button>
+<?php if ($av['code'] !== 'available'): ?>
+<button class="btn" disabled><?= $av['code'] === 'maintenance' ? 'Under maintenance' : ($av['code'] === 'rented' ? 'Already rented' : 'Not available') ?></button>
 <?php else: ?>
 <a class="btn" href="book.php?id=<?= (int)$v['id'] ?>">Book now</a>
 <p class="hint">Pay online with GCash, Maya or a card. You are refunded in full if the manager cannot accept the booking.</p>

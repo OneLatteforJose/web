@@ -35,8 +35,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'approve') {
         if ($b['status'] !== 'pending') {
             $err = 'Only pending bookings can be approved.';
-        } elseif ($b['vehicle_status'] === 'unavailable') {
-            $err = 'This vehicle is marked unavailable. Change its status on the Vehicles page first.';
+        } elseif (in_array($b['vehicle_status'], ['unavailable', 'maintenance'], true)) {
+            $err = 'This vehicle is marked ' . $b['vehicle_status'] . '. Change its status on the Vehicles page first.';
         } elseif ($clash = db_value($pdo, "SELECT id FROM bookings WHERE vehicle_id = ? AND status = 'approved' AND id <> ? AND start_at < ? AND end_at > ? LIMIT 1",
                                     [$b['vehicle_id'], $id, $b['end_at'], $b['start_at']])) {
             $err = "These dates overlap approved booking #$clash for the same vehicle.";

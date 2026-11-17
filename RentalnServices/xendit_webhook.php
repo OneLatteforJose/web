@@ -22,6 +22,12 @@ if ($invoiceId !== '' && in_array($event['status'] ?? '', ['PAID', 'SETTLED'], t
     if ($cid && ($invoice = xendit_get_invoice($invoiceId))) {
         finalize_checkout($pdo, $cid, $invoice);
     }
+    $st = $pdo->prepare("SELECT id FROM service_checkouts WHERE provider_session_id = ?");
+    $st->execute([$invoiceId]);
+    $sid = (int)$st->fetchColumn();
+    if ($sid && ($invoice = xendit_get_invoice($invoiceId))) {
+        finalize_service_checkout($pdo, $sid, $invoice);
+    }
 }
 http_response_code(200);
 echo 'ok';

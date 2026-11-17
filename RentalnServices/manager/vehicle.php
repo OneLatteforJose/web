@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $rate     = $_POST['rate_per_day'] ?? '';
     $driver   = (int)($_POST['own_driver_id'] ?? 0) ?: null;
     $status   = $_POST['status'] ?? '';
-    $okStatus = in_array($status, ['available', 'unavailable'], true) || $status === $v['status'];
+    $okStatus = in_array($status, ['available', 'unavailable', 'maintenance'], true) || $status === $v['status'];
 
     if (!isset($types[$type])) {
         $err = 'Choose a vehicle type.';
@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($driver && !in_array($driver, array_map('intval', array_column($drivers, 'id')), true)) {
         $err = 'The own driver must be a driver service of this vehicle\'s provider.';
     } elseif (!$okStatus) {
-        $err = 'Choose available or unavailable.';
+        $err = 'Choose available, unavailable or under maintenance.';
     } else {
         try {
             $pdo->prepare("UPDATE vehicles SET type = ?, model = ?, plate_no = ?, capacity = ?, rate_per_day = ?, own_driver_id = ?, status = ? WHERE id = ?")
@@ -95,8 +95,8 @@ if ($err) echo '<p class="err">' . e($err) . '</p>';
   </label>
   <label>Status
     <select name="status">
-      <?php foreach (array_unique(['available', 'unavailable', $v['status']]) as $s): ?>
-        <option value="<?= e($s) ?>" <?= $f('status') === $s ? 'selected' : '' ?>><?= e(ucfirst($s)) ?></option>
+      <?php foreach (array_unique(['available', 'unavailable', 'maintenance', $v['status']]) as $s): ?>
+        <option value="<?= e($s) ?>" <?= $f('status') === $s ? 'selected' : '' ?>><?= e($s === 'maintenance' ? 'Under maintenance' : ucfirst($s)) ?></option>
       <?php endforeach; ?>
     </select>
   </label>

@@ -2,8 +2,15 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/layout.php';
 require_once __DIR__ . '/../includes/reports.php';
+require_once __DIR__ . '/../includes/period_reports.php';
 require_admin();
 $pdo = db();
+
+// Weekly and monthly reports moved to the Dashboard. This page is now only the "Custom range / CSV" report.
+if (($_GET['view'] ?? '') !== 'range') {
+    header('Location: dashboard.php' . (($_SERVER['QUERY_STRING'] ?? '') !== '' ? '?' . $_SERVER['QUERY_STRING'] : '') . '#report');
+    exit;
+}
 $f = report_filters();
 $range = [$f['start'], $f['end']];
 $hasCity = $f['city'] !== '';
@@ -104,8 +111,10 @@ $cards = [
 ];
 
 page_header('Reports', 'reports.php');
+period_tabs('range', period_request(), $f['city'] !== '' ? ['city' => $f['city']] : [], true);
 ?>
 <form method="get" class="box">
+  <input type="hidden" name="view" value="range">
   <label>From <input type="date" name="from" value="<?= e($f['from']) ?>" required></label>
   <label>To <input type="date" name="to" value="<?= e($f['to']) ?>" required></label>
   <?php area_picker(['api' => '../api/areas.php', 'js' => '../assets/areas.js', 'city' => $f['city'], 'barangay' => false,

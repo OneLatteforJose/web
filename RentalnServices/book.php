@@ -14,8 +14,9 @@ $st = $pdo->prepare(
 );
 $st->execute([$id]);
 $v = $st->fetch();
-if (!$v || $v['status'] === 'unavailable') {
-    flash('That vehicle is not available right now.');
+$av = $v ? vehicle_availability($v, vehicle_states($pdo, [$id])[$id] ?? null) : null;
+if (!$v || $av['code'] !== 'available') {
+    flash($v ? $av['note'] : 'That vehicle is not available right now.');
     header('Location: vehicles.php');
     exit;
 }

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/includes/user.php';
+require_once __DIR__ . '/includes/xendit.php';
 $me = require_user();
 $pdo = db();
 
@@ -46,8 +47,11 @@ user_header($s['title'], 'services.php', ['back' => 'services.php']);
 
 <div class="side">
 <?php if (!$sameCity): ?><p class="alert">This service is only offered in <?= e($s['city']) ?>. Services can be requested in your own city.</p><?php endif; ?>
-<button class="btn" disabled>Book now</button>
-<p class="hint">Booking opens soon. Online payment is still being set up.</p>
+<?php if ($s['status'] !== 'available'): ?><button class="btn" disabled>Not available right now</button>
+<?php elseif (!$sameCity): ?><button class="btn" disabled>Book now</button>
+<?php elseif (!xendit_enabled()): ?><button class="btn" disabled>Book now</button><p class="hint">Online payment is not set up yet.</p>
+<?php else: ?><a class="btn" href="book_service.php?id=<?= (int)$s['id'] ?>">Book now</a>
+<p class="hint">Pay with GCash, Maya or a card. Refunded in full if the manager rejects it or you cancel while it is pending.</p><?php endif; ?>
 </div>
 
 <div class="more">

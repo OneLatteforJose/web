@@ -167,3 +167,16 @@ form.stack input,form.stack select,form.stack textarea{font:inherit;color:var(--
   .panel{padding:1.1rem 1.2rem}
 }
 @media (min-width:1200px){.umain{padding-left:0;padding-right:0}}
+
+/* Services page: the category tiles (same look as the old "Browse categories" on Home) used as the top filter */
+.cats.six{margin-bottom:1rem}
+.cat.on{background:var(--green);border-color:var(--green);color:#fff}
+.cat.on .ic{background:rgba(255,255,255,.22);color:#fff}
+@media (prefers-color-scheme:dark){.cat.on{color:#06130c}.cat.on .ic{background:rgba(6,19,12,.2);color:#06130c}}
+.cats.six{grid-template-columns:repeat(6,minmax(0,1fr))}   /* always one row */
+@media (max-width:599px){
+  .cats.six{gap:.35rem}
+  .cats.six .cat{padding:.6rem .15rem;font-size:.66rem;border-radius:12px;overflow-wrap:anywhere}
+  .cats.six .cat .ic{width:32px;height:32px;border-radius:10px}
+  .cats.six .cat .ic svg{width:17px;height:17px}
+}

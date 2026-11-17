@@ -31,8 +31,8 @@ function save_own_details(PDO $pdo, int $id, array $in, array $opts = []): strin
     if (!filter_var($email, FILTER_VALIDATE_EMAIL) || profile_len($email) > 150) {
         return 'Enter a valid email address.';
     }
-    if ($phone !== '' && !preg_match('/^[0-9+()\-\s]{7,30}$/', $phone)) {
-        return 'Enter a valid phone number, or leave it empty.';
+    if ($phone !== '' && !preg_match('/^[0-9]{11}$/', $phone)) {
+        return 'Enter an 11-digit phone number, for example 09171234567, or leave it empty.';
     }
     if (strcasecmp($email, $row['email']) !== 0 && !password_verify((string)($in['current_password'] ?? ''), $row['password_hash'])) {
         return 'Enter your current password to change your email address.';

@@ -41,7 +41,7 @@ if ($errDetails) echo '<p class="err">' . e($errDetails) . '</p>';
   <?= csrf_field() ?><input type="hidden" name="action" value="details">
   <label>Full name <input name="full_name" required maxlength="150" value="<?= e($me['full_name']) ?>"></label>
   <label>Email <input type="email" name="email" required maxlength="150" value="<?= e($me['email']) ?>"></label>
-  <label>Phone <input type="tel" name="phone" maxlength="30" value="<?= e($me['phone'] ?? '') ?>"></label>
+  <label>Phone <input type="tel" name="phone" inputmode="numeric" maxlength="11" pattern="[0-9]{11}" title="11 digits, for example 09171234567" placeholder="09XXXXXXXXX" oninput="this.value=this.value.replace(/\D/g,'').slice(0,11)" value="<?= e($me['phone'] ?? '') ?>"></label>
   <label>Street / address <input name="street" maxlength="255" value="<?= e($me['street'] ?? '') ?>"></label>
   <label>City covered <input value="<?= e($m['city'] . ', ' . $m['province']) ?>" disabled></label>
   <label>Current password <span style="font-weight:400">(only needed to change your email)</span> <input type="password" name="current_password" autocomplete="current-password"></label>

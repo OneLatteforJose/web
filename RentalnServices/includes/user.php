@@ -30,6 +30,24 @@ function require_user(): array {
     exit;
 }
 
+// Customers get their own view. Anyone else (not signed in, or another role) can browse ONE area as a guest,
+// reached from the landing page as ?city=Province|City, and sees the same lists.
+function browse_user(): array {
+    if (($_SESSION['user']['role'] ?? '') === 'customer') {
+        return require_user();
+    }
+    return ['id' => 0, 'guest' => true, 'full_name' => '', 'province' => '', 'city' => '', 'barangay' => '', 'area_id' => null];
+}
+
+// [province, city] from ?city=Province|City when that city exists, else null.
+function browse_city(PDO $pdo): ?array {
+    $p = parse_city_key($_GET['city'] ?? '');
+    if (!$p) return null;
+    $st = $pdo->prepare("SELECT 1 FROM areas WHERE province = ? AND city_municipality = ? LIMIT 1");
+    $st->execute($p);
+    return $st->fetchColumn() ? $p : null;
+}
+
 function uicon(string $name): string {
     static $p = [
         'home'     => '<path d="M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
@@ -81,6 +99,42 @@ function category_label(string $category): string {
     return service_categories()[$category][0] ?? ucfirst(str_replace('_', ' ', $category));
 }
 
+// Real-time availability of vehicles, measured against the server clock (APP_TIMEZONE) at the moment of the request.
+// Returns [vehicle_id => ['rented_until' => datetime|null, 'next_start' => datetime|null]] from approved bookings:
+// rented_until = a trip that is running right now, next_start = the next approved trip that has not begun.
+function vehicle_states(PDO $pdo, array $ids): array {
+    $ids = array_values(array_unique(array_map('intval', $ids)));
+    if (!$ids) return [];
+    $now = date('Y-m-d H:i:s');
+    $st = $pdo->prepare(
+        "SELECT vehicle_id, MIN(CASE WHEN start_at <= ? THEN end_at END) AS rented_until, MIN(CASE WHEN start_at > ? THEN start_at END) AS next_start
+         FROM bookings WHERE status = 'approved' AND end_at > ? AND vehicle_id IN (" . implode(',', array_fill(0, count($ids), '?')) . ") GROUP BY vehicle_id"
+    );
+    $st->execute(array_merge([$now, $now, $now], $ids));
+    $out = [];
+    foreach ($st->fetchAll() as $r) $out[(int)$r['vehicle_id']] = $r;
+    return $out;
+}
+
+// What a customer is told about one vehicle: ['code' => available|rented|maintenance|unavailable, 'label' => .., 'note' => ..].
+// "rented" = an approved trip is running right now (or the manager flagged it booked); it is not bookable until it is back.
+function vehicle_availability(array $v, ?array $state): array {
+    $fmt = fn(string $dt): string => date('M j, Y g:i A', strtotime($dt));
+    if ($v['status'] === 'maintenance') {
+        return ['code' => 'maintenance', 'label' => 'Under maintenance', 'note' => 'This vehicle is under maintenance and cannot be booked until the provider puts it back in service.'];
+    }
+    if ($v['status'] === 'unavailable') {
+        return ['code' => 'unavailable', 'label' => 'Unavailable', 'note' => 'This vehicle is not available right now.'];
+    }
+    if (!empty($state['rented_until'])) {
+        return ['code' => 'rented', 'label' => 'Unavailable: already rented', 'note' => 'Already rented. It is expected back on ' . $fmt($state['rented_until']) . '.'];
+    }
+    if ($v['status'] === 'booked') {
+        return ['code' => 'rented', 'label' => 'Unavailable: already rented', 'note' => 'Already rented.'];
+    }
+    return ['code' => 'available', 'label' => 'Available', 'note' => ''];
+}
+
 function status_chip(string $status): string {
     return '<span class="chip st-' . e($status) . '">' . e(ucfirst($status)) . '</span>';
 }
@@ -96,6 +150,9 @@ function short_name(string $full): string {
 // The navigation is printed once. CSS puts it at the bottom on phones and in the top bar on larger screens.
 function user_header(string $title, string $active, array $opts = []): void {
     $nav = ['home.php' => ['Home', 'home'], 'services.php' => ['Services', 'services'], 'vehicles.php' => ['Vehicles', 'car'], 'bookings.php' => ['Bookings', 'calendar'], 'profile.php' => ['Profile', 'user']];
+    if (!empty($opts['guest'])) {   // a visitor browsing one area
+        $nav = ['index.php' => ['Home', 'home'], 'login.php' => ['Log in', 'user'], 'register.php' => ['Sign up', 'user']];
+    }
     ?>
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">

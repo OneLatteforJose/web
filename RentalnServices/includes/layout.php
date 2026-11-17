@@ -83,7 +83,6 @@ function page_header(string $title, string $active = ''): void {
         'partners.php'  => ['Partnerships',        'users'],
         'catalog.php'   => ['Vehicles & Services', 'car'],
         'activity.php'  => ['Activity',            'calendar'],
-        'reports.php'   => ['Reports',             'chart'],
         'areas.php'     => ['Areas',               'pin'],
         'logs.php'      => ['Admin Log',           'file'],
     ], [

@@ -4,12 +4,6 @@ $me = require_user();
 $pdo = db();
 $first = explode(' ', trim($me['full_name']))[0];
 $groups = service_groups();
-$tiles = [];
-foreach (['home', 'cleaning', 'personal', 'outdoor'] as $k) {
-    $tiles[] = [$groups[$k][0], $groups[$k][1], 'services.php?group=' . $k];
-}
-$tiles[] = ['Vehicles', 'car', 'vehicles.php'];
-
 $popular = $me['city'] ? popular_services($pdo, $me['province'], $me['city']) : [];
 
 // The customer's next bookings and requests (waiting for approval, or approved and still ahead).
@@ -45,27 +39,7 @@ user_header(SITE_NAME, 'home.php', ['brand' => true]);
   </div>
 </section>
 
-<?php if ($upcoming): ?>
-<div class="sec"><h2>Coming up</h2><a href="bookings.php">All bookings</a></div>
-<div class="list">
-  <?php foreach ($upcoming as $u): ?>
-    <a class="row" href="order.php?type=<?= e($u['kind']) ?>&amp;id=<?= (int)$u['id'] ?>">
-      <span class="ic"><?= uicon($u['kind'] === 'booking' ? 'car' : 'wrench') ?></span>
-      <span class="grow"><span class="t"><?= e($u['title']) ?></span><br><span class="d"><?= e(date('D, M j, g:i A', strtotime($u['at']))) ?></span></span>
-      <span class="end"><?= status_chip($u['status']) ?></span>
-    </a>
-  <?php endforeach; ?>
-</div>
-<?php endif; ?>
-
-<div class="sec"><h2>Browse categories</h2><a href="services.php">View all</a></div>
-<div class="cats">
-  <?php foreach ($tiles as [$label, $ic, $href]): ?>
-    <a class="cat" href="<?= e($href) ?>"><span class="ic"><?= uicon($ic) ?></span><?= e($label) ?></a>
-  <?php endforeach; ?>
-</div>
-
-<div class="sec"><h2>Popular services</h2><a href="services.php">See all</a></div>
+<div class="sec"><h2>Available services</h2><a href="services.php">See all</a></div>
 <?php if (!$popular): ?>
   <p class="empty"><?= $me['city'] ? 'No services are listed in ' . e($me['city']) . ' yet. Check back soon, or look at vehicles.' : 'Services appear here once you add your address.' ?></p>
 <?php else: ?>
@@ -82,4 +56,18 @@ user_header(SITE_NAME, 'home.php', ['brand' => true]);
   <?php endforeach; ?>
 </div>
 <?php endif;
-user_footer();
+?>
+
+<?php if ($upcoming): ?>
+<div class="sec"><h2>Coming up</h2><a href="bookings.php">All bookings</a></div>
+<div class="list">
+  <?php foreach ($upcoming as $u): ?>
+    <a class="row" href="order.php?type=<?= e($u['kind']) ?>&amp;id=<?= (int)$u['id'] ?>">
+      <span class="ic"><?= uicon($u['kind'] === 'booking' ? 'car' : 'wrench') ?></span>
+      <span class="grow"><span class="t"><?= e($u['title']) ?></span><br><span class="d"><?= e(date('D, M j, g:i A', strtotime($u['at']))) ?></span></span>
+      <span class="end"><?= status_chip($u['status']) ?></span>
+    </a>
+  <?php endforeach; ?>
+</div>
+<?php endif; ?>
+<?php user_footer();

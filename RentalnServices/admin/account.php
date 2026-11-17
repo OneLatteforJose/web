@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $action = $_POST['action'] ?? '';
 
-    if ($action === 'toggle' && in_array($u['role'], ['manager', 'provider'], true)) {
+    if ($action === 'toggle' && in_array($u['role'], ['manager', 'provider', 'customer'], true)) {
         if ($u['app_status'] !== 'approved') {
             flash('This provider has not been approved. Decide the application on the Applications page.');
             header('Location: ' . $back);
@@ -45,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $pdo->prepare("UPDATE users SET is_active = 1 - is_active WHERE id = ?")->execute([$id]);
             $pdo->commit();
-            log_action('account.status', 'user', $id, ($u['is_active'] ? 'Deactivated ' : 'Activated ') . $u['role'] . ' account');
+            log_action('account.status', 'user', $id, ($u['is_active'] ? ($u['role'] === 'customer' ? 'Blocked ' : 'Deactivated ') : ($u['role'] === 'customer' ? 'Unblocked ' : 'Activated ')) . $u['role'] . ' account');
             flash('Account status updated.');
         }
         header('Location: ' . $back);
@@ -78,6 +78,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $err = 'Enter a name and a valid email.';
+        } elseif ($phone !== null && !preg_match('/^[0-9]{11}$/', $phone)) {
+            $err = 'Enter an 11-digit phone number, for example 09171234567, or leave it empty.';
         } elseif (!$found("SELECT 1 FROM areas WHERE id = ?", [$area])) {
             $err = 'Select a city and barangay.';
         } else {
@@ -156,7 +158,7 @@ if ($err) echo '<p class="err">' . e($err) . '</p>';
 <p><a href="accounts.php?role=<?= e($u['role']) ?>">&larr; Back to accounts</a></p>
 
 <div class="grid">
-  <div class="card"><div class="n"><?= $u['app_status'] === 'pending' ? 'Pending approval' : ($u['app_status'] === 'rejected' ? 'Rejected' : ($u['is_active'] ? 'Active' : 'Deactivated')) ?></div><div class="l">Status</div></div>
+  <div class="card"><div class="n"><?= $u['app_status'] === 'pending' ? 'Pending approval' : ($u['app_status'] === 'rejected' ? 'Rejected' : ($u['is_active'] ? 'Active' : ($u['role'] === 'customer' ? 'Blocked' : 'Deactivated'))) ?></div><div class="l">Status</div></div>
   <?php foreach ($facts as $label => $value): ?>
     <div class="card"><div class="n"><?= (int)$value ?></div><div class="l"><?= e($label) ?></div></div>
   <?php endforeach; ?>
@@ -168,7 +170,7 @@ if ($err) echo '<p class="err">' . e($err) . '</p>';
   <?= csrf_field() ?><input type="hidden" name="action" value="save"><input type="hidden" name="id" value="<?= $id ?>">
   <label>Full name <input name="full_name" required value="<?= e($v('full_name')) ?>"></label>
   <label>Email <input type="email" name="email" required value="<?= e($v('email')) ?>"></label>
-  <label>Phone <input name="phone" value="<?= e($v('phone')) ?>"></label>
+  <label>Phone <input type="tel" name="phone" inputmode="numeric" maxlength="11" pattern="[0-9]{11}" title="11 digits, for example 09171234567" placeholder="09XXXXXXXXX" oninput="this.value=this.value.replace(/\D/g,'').slice(0,11)" value="<?= e($v('phone')) ?>"></label>
   <?php area_picker(['api' => '../api/areas.php', 'js' => '../assets/areas.js',
                      'city' => (string)(($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save') ? ($_POST['city'] ?? $currentCity) : $currentCity),
                      'area_id' => (int)$v('area_id'), 'required' => true]); ?>
@@ -199,11 +201,11 @@ if ($err) echo '<p class="err">' . e($err) . '</p>';
 <h2>Application</h2>
 <p class="note">This provider is <b><?= e($u['app_status']) ?></b>.<?= $u['review_note'] ? ' Reason given: ' . e($u['review_note']) . '.' : '' ?>
   <a href="applications.php?status=<?= e($u['app_status']) ?>">Open the application</a> to approve or reject it.</p>
-<?php elseif (in_array($u['role'], ['manager', 'provider'], true)): ?>
+<?php elseif (in_array($u['role'], ['manager', 'provider', 'customer'], true)): ?>
 <h2>Account status</h2>
 <form method="post" onsubmit="return confirm('Change this account\'s status?')">
   <?= csrf_field() ?><input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="<?= $id ?>">
-  <button class="alt"><?= $u['is_active'] ? 'Deactivate this account' : 'Activate this account' ?></button>
+  <button class="alt"><?= $u['role'] === 'customer' ? ($u['is_active'] ? 'Block this customer' : 'Unblock this customer') : ($u['is_active'] ? 'Deactivate this account' : 'Activate this account') ?></button>
 </form>
 <?php endif;
 page_footer();

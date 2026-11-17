@@ -19,12 +19,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
     if ($action === 'toggle') {
-        // Admin can activate/deactivate managers and providers only.
+        // Admin can activate/deactivate managers and providers, and block/unblock customers.
         $id = (int)($_POST['id'] ?? 0);
         $pdo->beginTransaction();
         $st = $pdo->prepare("SELECT u.role, u.is_active, u.area_id, COALESCE(pp.application_status, 'approved') AS app_status
                              FROM users u LEFT JOIN provider_profiles pp ON pp.user_id = u.id
-                             WHERE u.id = ? AND u.role IN ('manager','provider') FOR UPDATE");
+                             WHERE u.id = ? AND u.role IN ('manager','provider','customer') FOR UPDATE");
         $st->execute([$id]);
         $u = $st->fetch();
         if ($u && $u['app_status'] !== 'approved') {
@@ -63,6 +63,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $err = 'Choose manager or provider.';
         } elseif ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $err = 'Enter a name and a valid email.';
+        } elseif ($phone !== null && !preg_match('/^[0-9]{11}$/', $phone)) {
+            $err = 'Enter an 11-digit phone number, for example 09171234567, or leave it empty.';
         } elseif (strlen($pass) < 8) {
             $err = 'Temporary password must be at least 8 characters.';
         } elseif (!$found("SELECT 1 FROM areas WHERE id = ?", [$area])) {
@@ -103,9 +105,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $filter = $_GET['role'] ?? 'all';
 $where = " WHERE u.role <> 'admin'";
 $params = [];
+// Tabs: a role, or "off" = the switched-off accounts of a role (deactivated manager / provider, blocked customer).
+// A provider whose application is still pending or rejected is not "deactivated"; those are on the Applications page.
+$off = ['off_manager' => 'manager', 'off_provider' => 'provider', 'off_customer' => 'customer'];
 if (in_array($filter, ['manager', 'provider', 'customer'], true)) {
     $where .= " AND u.role = ?";
     $params[] = $filter;
+} elseif (isset($off[$filter])) {
+    $where .= " AND u.role = ? AND u.is_active = 0 AND COALESCE(pp.application_status, 'approved') = 'approved'";
+    $params[] = $off[$filter];
 } else {
     $filter = 'all';
 }
@@ -116,13 +124,13 @@ if ($q !== '') {
     $params[] = $like;
     $params[] = $like;
 }
-$cnt = $pdo->prepare("SELECT COUNT(*) FROM users u" . $where);
+$cnt = $pdo->prepare("SELECT COUNT(*) FROM users u LEFT JOIN provider_profiles pp ON pp.user_id = u.id AND u.role = 'provider'" . $where);
 $cnt->execute($params);
 $pg = paginate((int)$cnt->fetchColumn(), 50);
 $st = $pdo->prepare(
     "SELECT u.id, u.role, u.full_name, u.email, u.phone, u.street, u.is_active, a.city_municipality AS city, a.barangay,
             CASE WHEN pp.application_status = 'pending' THEN 'Pending approval' WHEN pp.application_status = 'rejected' THEN 'Rejected'
-                 WHEN u.is_active THEN 'Active' ELSE 'Deactivated' END AS status_text, COALESCE(pp.application_status, 'approved') AS app_status
+                 WHEN u.is_active THEN 'Active' WHEN u.role = 'customer' THEN 'Blocked' ELSE 'Deactivated' END AS status_text, COALESCE(pp.application_status, 'approved') AS app_status
      FROM users u LEFT JOIN areas a ON a.id = u.area_id LEFT JOIN provider_profiles pp ON pp.user_id = u.id AND u.role = 'provider'" . $where . " ORDER BY u.id DESC LIMIT {$pg['per']} OFFSET {$pg['offset']}"
 );
 $st->execute($params);
@@ -156,7 +164,7 @@ $showAdd = $err !== '' || ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['act
   </label>
   <label>Full name <input name="full_name" required value="<?= e($_POST['full_name'] ?? '') ?>"></label>
   <label>Email <input type="email" name="email" required value="<?= e($_POST['email'] ?? '') ?>"></label>
-  <label>Phone <input name="phone" value="<?= e($_POST['phone'] ?? '') ?>"></label>
+  <label>Phone <input type="tel" name="phone" inputmode="numeric" maxlength="11" pattern="[0-9]{11}" title="11 digits, for example 09171234567" placeholder="09XXXXXXXXX" oninput="this.value=this.value.replace(/\D/g,'').slice(0,11)" value="<?= e($_POST['phone'] ?? '') ?>"></label>
   <?php area_picker(['api' => '../api/areas.php', 'js' => '../assets/areas.js', 'city' => (string)($_POST['city'] ?? ($_GET['city'] ?? '')),
                      'area_id' => (int)($_POST['area_id'] ?? 0), 'required' => true]); ?>
   <label>Street / address <input name="street" value="<?= e($_POST['street'] ?? '') ?>"></label>
@@ -187,7 +195,8 @@ $showAdd = $err !== '' || ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['act
 </script>
 
 <div class="tabs">
-  <?php foreach (['all' => 'All', 'manager' => 'Managers', 'provider' => 'Providers', 'customer' => 'Customers'] as $k => $label): ?>
+  <?php foreach (['all' => 'All', 'manager' => 'Managers', 'provider' => 'Providers', 'customer' => 'Customers',
+                  'off_manager' => 'Deactivated managers', 'off_provider' => 'Deactivated providers', 'off_customer' => 'Blocked customers'] as $k => $label): ?>
     <a href="?role=<?= $k ?>" class="<?= $filter === $k ? 'on' : '' ?>"><?= $label ?></a>
   <?php endforeach; ?>
 </div>
@@ -215,13 +224,13 @@ $showAdd = $err !== '' || ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['act
       <td>
         <?php if ($u['app_status'] !== 'approved'): ?>
           <a href="applications.php?status=<?= e($u['app_status']) ?>">Review</a>
-        <?php elseif (in_array($u['role'], ['manager', 'provider'], true)): ?>
+        <?php elseif (in_array($u['role'], ['manager', 'provider', 'customer'], true)): ?>
           <form method="post" style="margin:0" onsubmit="return confirm('Change this account\'s status?')">
             <?= csrf_field() ?>
             <input type="hidden" name="action" value="toggle">
             <input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
             <input type="hidden" name="filter" value="<?= e($filter) ?>">
-            <button class="alt"><?= $u['is_active'] ? 'Deactivate' : 'Activate' ?></button>
+            <button class="alt"><?= $u['role'] === 'customer' ? ($u['is_active'] ? 'Block' : 'Unblock') : ($u['is_active'] ? 'Deactivate' : 'Activate') ?></button>
           </form>
         <?php endif; ?>
       </td>

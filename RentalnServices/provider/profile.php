@@ -53,7 +53,7 @@ if ($errDetails) echo '<p class="err">' . e($errDetails) . '</p>';
   <label>Full name <input name="full_name" required maxlength="150" value="<?= e($me_['full_name']) ?>"></label>
   <label>Business or trade name <input name="business_name" maxlength="150" value="<?= e($me_['business_name'] ?? '') ?>"></label>
   <label>Email <input type="email" name="email" required maxlength="150" value="<?= e($me_['email']) ?>"></label>
-  <label>Phone <input type="tel" name="phone" maxlength="30" value="<?= e($me_['phone'] ?? '') ?>"></label>
+  <label>Phone <input type="tel" name="phone" inputmode="numeric" maxlength="11" pattern="[0-9]{11}" title="11 digits, for example 09171234567" placeholder="09XXXXXXXXX" oninput="this.value=this.value.replace(/\D/g,'').slice(0,11)" value="<?= e($me_['phone'] ?? '') ?>"></label>
   <label>Street / address <input name="street" maxlength="255" value="<?= e($me_['street'] ?? '') ?>"></label>
   <label>Barangay <input value="<?= e(trim(($p['barangay'] ?? '') . ($p['city'] ? ', ' . $p['city'] . ', ' . $p['province'] : ''))) ?>" disabled></label>
   <label style="grid-column:1/-1">About what you offer <textarea name="about" rows="3" maxlength="500"><?= e($me_['about'] ?? '') ?></textarea></label>

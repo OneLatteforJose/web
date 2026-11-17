@@ -1,23 +1,23 @@
 <?php
 require_once __DIR__ . '/includes/site.php';
-
-$vehicles = vehicle_types();
-$services = service_categories();
+require_once __DIR__ . '/includes/areas.php';
 
 public_header('Vehicles and home services', true);
 ?>
 <section class="slider" id="hero" aria-roledescription="carousel" aria-label="Rent a vehicle or book a service">
   <div class="slide hero-vehicle on" role="group" aria-roledescription="slide" aria-label="1 of 2">
-    <div class="hero-card">
+    <a class="hero-card" href="#vehicles">
       <h1>Rent a vehicle.</h1>
       <p>Choose a vehicle that is available in your area, with or without a driver.</p>
-    </div>
+      <span class="hero-go">See areas and offered vehicles &rarr;</span>
+    </a>
   </div>
   <div class="slide hero-service" role="group" aria-roledescription="slide" aria-label="2 of 2">
-    <div class="hero-card">
+    <a class="hero-card" href="#services">
       <h2>Book a Service.</h2>
       <p>Find and connect with reliable local professionals for your everyday needs, from home repairs and cleaning to personal care and transportation.</p>
-    </div>
+      <span class="hero-go">See areas and offered services &rarr;</span>
+    </a>
   </div>
   <button type="button" class="arrow prev" aria-label="Previous slide">&#8249;</button>
   <button type="button" class="arrow next" aria-label="Next slide">&#8250;</button>
@@ -51,34 +51,98 @@ public_header('Vehicles and home services', true);
 })();
 </script>
 
-<section class="section" id="vehicles">
-  <div class="wrap">
-    <h2>Vehicles for rent</h2>
-    <p class="intro">Pick the vehicle that fits the trip, then decide whether you want to drive it yourself.</p>
-    <ul class="rows">
-      <?php foreach ($vehicles as [$label, $desc]): ?>
-        <li>
-          <strong><?= e($label) ?></strong>
-          <span><?= e($desc) ?></span>
-          <span class="tags"><span class="tag">Drive yourself</span><span class="tag">With a driver</span></span>
-        </li>
+<?php
+// Provinces that have at least one city/municipality with a manager, providers, and something to offer.
+// Compact master-detail browser so the page stays the same height however many provinces there are:
+// province chips on the left (scrollable, searchable), the chosen province's municipalities on the right (scrollable).
+$covered = covered_cities(db());
+$areaBrowser = function (string $for) use ($covered): void {
+    $page = $for === 'vehicles' ? 'vehicles.php' : 'services.php';
+    $word = $for === 'vehicles' ? 'vehicle' : 'service';
+    $by = [];
+    foreach ($covered as $c) {
+        if ((int)$c[$for] > 0) $by[$c['province']][] = $c;
+    }
+    if (!$by) { echo '<p class="note">No area is open yet. Please check back soon.</p>'; return; }
+    ksort($by);
+    ?>
+<div class="ab" data-ab>
+  <div class="ab-side">
+    <input type="search" class="ab-find" placeholder="Search province or municipality" aria-label="Search province or municipality" data-ab-find>
+    <ul class="ab-prov" role="listbox" aria-label="Provinces" data-ab-prov>
+      <?php foreach ($by as $prov => $cities): ?>
+        <li><button type="button" role="option" data-prov="<?= e($prov) ?>" data-munis="<?= e(implode('|', array_column($cities, 'city'))) ?>">
+          <span><?= e($prov) ?></span><span class="ab-n"><?= count($cities) ?></span></button></li>
       <?php endforeach; ?>
     </ul>
+  </div>
+  <div class="ab-main" data-ab-main aria-live="polite">
+    <p class="ab-hint" data-ab-hint>Choose a province to see its municipalities.</p>
+    <?php foreach ($by as $prov => $cities): ?>
+      <div class="ab-panel" data-panel="<?= e($prov) ?>" hidden>
+        <h3><?= e($prov) ?></h3>
+        <ul class="ab-muni">
+          <?php foreach ($cities as $c): $n = (int)$c[$for]; ?>
+            <li data-muni="<?= e($c['city']) ?>"><a href="<?= $page ?>?<?= e(http_build_query(['city' => city_key($c['province'], $c['city'])])) ?>">
+              <strong><?= e($c['city']) ?></strong>
+              <span class="meta"><?= $n ?> <?= $word ?><?= $n === 1 ? '' : 's' ?> &middot; <?= (int)$c['providers'] ?> provider<?= (int)$c['providers'] === 1 ? '' : 's' ?></span>
+              <span class="meta">Manager: <?= e($c['managers']) ?></span></a></li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+    <?php endforeach; ?>
+  </div>
+</div>
+<?php
+};
+?>
+<section class="section" id="vehicles">
+  <div class="wrap">
+    <h2>Available Areas with verified vehicles</h2>
+    <p class="intro">Choose a province, then a municipality, to see the vehicles it offers.</p>
+    <?php $areaBrowser('vehicles'); ?>
     <p class="note">A driver comes from the vehicle owner, or your area manager assigns one.</p>
   </div>
 </section>
 
 <section class="section" id="services">
   <div class="wrap">
-    <h2>Services at your door</h2>
-    <p class="intro">Request a service from providers who work in your area.</p>
-    <ul class="svc">
-      <?php foreach ($services as [$label, $desc]): ?>
-        <li><strong><?= e($label) ?></strong><span><?= e($desc) ?></span></li>
-      <?php endforeach; ?>
-    </ul>
+    <h2>Available Areas with verified services</h2>
+    <p class="intro">Choose a province, then a municipality, to see the services it offers.</p>
+    <?php $areaBrowser('services'); ?>
   </div>
 </section>
+
+<script>
+// Province -> municipality browser (one per section). Works on whatever number of provinces there are.
+document.querySelectorAll('[data-ab]').forEach(function (root) {
+  var btns = [].slice.call(root.querySelectorAll('[data-prov]')),
+      panels = [].slice.call(root.querySelectorAll('[data-panel]')),
+      hint = root.querySelector('[data-ab-hint]'), find = root.querySelector('[data-ab-find]');
+  function pick(name) {
+    btns.forEach(function (b) { var on = b.getAttribute('data-prov') === name; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
+    panels.forEach(function (p) { p.hidden = p.getAttribute('data-panel') !== name; });
+    hint.hidden = !!name;
+  }
+  btns.forEach(function (b) { b.addEventListener('click', function () { pick(b.getAttribute('data-prov')); }); });
+  // Search narrows the province list and the municipality cards at the same time.
+  find.addEventListener('input', function () {
+    var q = find.value.trim().toLowerCase(), firstShown = null;
+    btns.forEach(function (b) {
+      var prov = b.getAttribute('data-prov').toLowerCase(), munis = b.getAttribute('data-munis').toLowerCase();
+      var show = !q || prov.indexOf(q) > -1 || munis.indexOf(q) > -1;
+      b.parentNode.hidden = !show;
+      if (show && !firstShown) firstShown = b.getAttribute('data-prov');
+    });
+    panels.forEach(function (p) {
+      var provMatch = p.getAttribute('data-panel').toLowerCase().indexOf(q) > -1;
+      p.querySelectorAll('[data-muni]').forEach(function (li) { li.hidden = !!q && !provMatch && li.getAttribute('data-muni').toLowerCase().indexOf(q) === -1; });
+    });
+    if (q && firstShown) pick(firstShown);
+  });
+  if (btns.length === 1) pick(btns[0].getAttribute('data-prov'));   // only one province: show it straight away
+});
+</script>
 
 <section class="section" id="how">
   <div class="wrap">

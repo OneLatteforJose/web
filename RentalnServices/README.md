@@ -206,3 +206,11 @@ refunded by API, the booking is still cancelled and the screen says to refund it
 4. Testing: on the Xendit page choose GCash/Maya/card. In test mode Xendit shows a simulator to approve the payment.
 5. Webhook (optional, needs a public HTTPS address, e.g. ngrok): set "Invoices paid" callback to `https://YOUR-SITE/xendit_webhook.php` and copy the
    callback verification token into `XENDIT_CALLBACK_TOKEN`.
+
+## Weekly and monthly reports
+
+Admin, manager and provider each have a **Reports** page with a top navigation: **Weekly report** | **Monthly report** (the admin also keeps the older **Custom range** tab).
+- Weekly: pick a start date; the report covers that day plus the 6 days after it (7 days), with a day-by-day table.
+- Monthly: pick a month; the report covers that whole month. The arrows move to the previous or next week or month.
+- Bookings and requests are counted by the day they were made, payments by the day they were paid. The admin can filter by city, a manager sees their own city, a provider sees their own vehicles and services.
+Code: `includes/period_reports.php` (shared), `admin/reports.php`, `manager/reports.php`, `provider/reports.php`.

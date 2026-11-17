@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/manager.php';
+require_once __DIR__ . '/../includes/xendit.php';
 $m = require_manager();
 $pdo = db();
 $id = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
@@ -44,9 +45,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $err = 'Only pending requests can be rejected.';
         } else {
             $pdo->prepare("UPDATE service_requests SET status = 'rejected', reviewed_by = ? WHERE id = ?")->execute([$m['id'], $id]);
-            $pdo->prepare("UPDATE payments SET status = 'refunded' WHERE service_request_id = ? AND status = 'paid'")->execute([$id]);   // the customer is told it was refunded
+            $refundOk = refund_service_payments($pdo, $id);   // real refund through Xendit
             $note = trim($_POST['note'] ?? '');
-            $done = "Request #$id rejected.";
+            $done = "Request #$id rejected." . ($refundOk ? ' The customer was refunded.' : ' The automatic refund failed; refund it from the Xendit dashboard.');
             log_action('request.reject', 'request', $id, "Rejected service request #$id" . ($note !== '' ? ': ' . $note : ''));
         }
     } elseif ($action === 'complete') {

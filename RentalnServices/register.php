@@ -46,8 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $err = 'Enter a valid email address.';
     } elseif ($as === 'provider' && $f['phone'] === '') {
         $err = 'Enter a phone number so the manager can reach you.';
-    } elseif ($f['phone'] !== '' && !preg_match('/^[0-9+()\-\s]{7,30}$/', $f['phone'])) {
-        $err = 'Enter a valid phone number' . ($as === 'provider' ? '.' : ', or leave it empty.');
+    } elseif ($f['phone'] !== '' && !preg_match('/^[0-9]{11}$/', $f['phone'])) {
+        $err = 'Enter an 11-digit phone number, for example 09171234567' . ($as === 'provider' ? '.' : ', or leave it empty.');
     } elseif ($as === 'provider' && ($len($f['business_name']) < 2 || $len($f['business_name']) > 150)) {
         $err = 'Enter your business or trade name (2 to 150 characters). Use your own name if you work alone.';
     } elseif ($as === 'provider' && ($len($f['about']) < 10 || $len($f['about']) > 500)) {
@@ -98,10 +98,14 @@ public_header($as === 'provider' ? 'Become a provider' : 'Create an account');
 .hp{position:absolute;left:-9999px;height:0;overflow:hidden}
 .signtabs{display:flex;gap:.5rem;margin:0 0 1.2rem}
 .signtabs a{padding:.45rem 1rem;border:1px solid #9fb0a5;border-radius:999px;text-decoration:none;color:var(--ink);font-weight:600}
+/* intro on the left, the sign-up box on the right (stacked on small screens) */
+.regwrap{grid-template-columns:1fr minmax(0,560px);align-items:start}
+.regwrap .formcard{width:100%;justify-self:end}
+@media (max-width:860px){.regwrap{grid-template-columns:1fr}.regwrap .formcard{justify-self:stretch}}
 .signtabs a[aria-current=page]{background:var(--road,#1f6f4a);border-color:var(--road,#1f6f4a);color:#fff}
 </style>
 <section class="section">
-  <div class="wrap loginwrap single" style="grid-template-columns:minmax(0,560px)">
+  <div class="wrap loginwrap regwrap">
     <div>
       <div class="signtabs" role="navigation" aria-label="Account type">
         <a href="register.php"<?= $as === 'customer' ? ' aria-current="page"' : '' ?>>I want to book</a>
@@ -132,7 +136,7 @@ public_header($as === 'provider' ? 'Become a provider' : 'Create an account');
         <label>Business or trade name <input name="business_name" required maxlength="150" value="<?= e($f['business_name']) ?>"></label>
       <?php endif; ?>
       <label>Email <input type="email" name="email" autocomplete="email" required maxlength="150" value="<?= e($f['email']) ?>"></label>
-      <label>Phone<?= $as === 'provider' ? '' : ' (optional)' ?> <input type="tel" name="phone" autocomplete="tel" maxlength="30"<?= $as === 'provider' ? ' required' : '' ?> value="<?= e($f['phone']) ?>"></label>
+      <label>Phone<?= $as === 'provider' ? '' : ' (optional)' ?> <input type="tel" name="phone" autocomplete="tel" inputmode="numeric" maxlength="11" pattern="[0-9]{11}" title="11 digits, for example 09171234567" placeholder="09XXXXXXXXX" oninput="this.value=this.value.replace(/\D/g,'').slice(0,11)"<?= $as === 'provider' ? ' required' : '' ?> value="<?= e($f['phone']) ?>"></label>
       <?php area_picker(['api' => 'api/areas.php', 'js' => 'assets/areas.js', 'city' => $f['city'], 'area_id' => $f['area_id'], 'required' => true]); ?>
       <label>Street / house address <input name="street" autocomplete="street-address" required maxlength="255" value="<?= e($f['street']) ?>"></label>
       <?php if ($as === 'provider'): ?>

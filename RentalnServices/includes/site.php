@@ -41,12 +41,13 @@ function public_header(string $title, bool $onHome = false, string $base = '', s
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&amp;family=Public+Sans:wght@400;600&amp;family=Archivo+Black&amp;display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="<?= e($base) ?>assets/img/logo.png">
 <link rel="stylesheet" href="<?= e($base) ?>assets/landing.css?v=<?= (int)@filemtime(__DIR__ . '/../assets/landing.css') ?>">
 </head>
 <body<?= $bodyClass !== '' ? ' class="' . e($bodyClass) . '"' : '' ?>>
 <header class="topbar">
   <div class="wrap">
-    <a class="brand" href="<?= e($base) ?>index.php"><?= e(SITE_NAME) ?></a>
+    <a class="brand" href="<?= e($base) ?>index.php"><img src="<?= e($base) ?>assets/img/logo.png" alt="" width="38" height="38"><span><?= e(SITE_NAME) ?></span></a>
     <nav class="topnav" aria-label="Main">
       <a href="<?= $home ?>#vehicles">Vehicles</a>
       <a href="<?= $home ?>#services">Services</a>
@@ -64,6 +65,11 @@ function public_header(string $title, bool $onHome = false, string $base = '', s
   </div>
 </header>
 <?php
+}
+
+// Where deactivated / blocked users are told to write. Override in config.local.php with define('ADMIN_CONTACT_EMAIL', '...').
+if (!defined('ADMIN_CONTACT_EMAIL')) {
+    define('ADMIN_CONTACT_EMAIL', 'sorianojosev5@gmail.com');
 }
 
 function login_form(string $error = ''): void {

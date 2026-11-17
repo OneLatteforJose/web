@@ -43,10 +43,10 @@ function xendit_request(string $method, string $path, ?array $body = null): arra
 // Creates a hosted payment page. Returns ['id' => invoice id, 'url' => page address, 'redirects' => bool] or null.
 // 'redirects' is true when Xendit will send the customer back to pay_return.php after paying. Xendit may refuse a return
 // address like http://localhost, so we then retry without it ('redirects' false) and the site waits on pay_wait.php instead.
-function xendit_create_invoice(int $checkoutId, float $amount, string $itemName, string $description, string $payerName, string $payerEmail): ?array {
+function xendit_create_invoice(int $checkoutId, float $amount, string $itemName, string $description, string $payerName, string $payerEmail, string $prefix = 'RS', string $returnPage = 'pay_return.php'): ?array {
     $base = app_url();
     $body = [
-        'external_id'      => 'RS-' . $checkoutId,
+        'external_id'      => $prefix . '-' . $checkoutId,
         'amount'           => $amount,                  // pesos, not centavos
         'currency'         => 'PHP',
         'description'      => $description,
@@ -59,8 +59,8 @@ function xendit_create_invoice(int $checkoutId, float $amount, string $itemName,
         $body['customer'] = ['given_names' => $payerName !== '' ? $payerName : 'Customer', 'email' => $payerEmail];
     }
     $withRedirects = $body + [
-        'success_redirect_url' => $base . '/pay_return.php?c=' . $checkoutId,
-        'failure_redirect_url' => $base . '/pay_return.php?c=' . $checkoutId . '&cancelled=1',
+        'success_redirect_url' => $base . '/' . $returnPage . '?c=' . $checkoutId,
+        'failure_redirect_url' => $base . '/' . $returnPage . '?c=' . $checkoutId . '&cancelled=1',
     ];
     foreach ([true, false] as $useRedirects) {
         [$code, $res] = xendit_request('POST', '/v2/invoices', $useRedirects ? $withRedirects : $body);
@@ -168,6 +168,74 @@ function refund_booking_payments(PDO $pdo, int $bookingId): bool {
             ]);
             if ($code < 200 || $code >= 300) {
                 error_log("Xendit refund failed for booking #$bookingId ($code): " . json_encode($res));
+                $allOk = false;
+                continue;
+            }
+        }
+        $pdo->prepare("UPDATE payments SET status = 'refunded' WHERE id = ?")->execute([$p['id']]);
+    }
+    return $allOk;
+}
+
+// Turns a paid service checkout into a real service request (status pending, for the area manager) plus its paid payment.
+// Same safety rules as finalize_checkout(). Returns the request id, or null.
+function finalize_service_checkout(PDO $pdo, int $checkoutId, array $invoice): ?int {
+    $paid = xendit_paid($invoice);
+    if (!$paid) {
+        return null;
+    }
+    $pdo->beginTransaction();
+    try {
+        $st = $pdo->prepare("SELECT * FROM service_checkouts WHERE id = ? FOR UPDATE");
+        $st->execute([$checkoutId]);
+        $c = $st->fetch();
+        if (!$c || $c['provider_session_id'] !== $paid['id']) {
+            $pdo->rollBack();
+            return null;
+        }
+        if ($c['status'] === 'paid' && $c['service_request_id']) {
+            $pdo->commit();
+            return (int)$c['service_request_id'];
+        }
+        if (abs($paid['amount'] - (float)$c['total_price']) > 0.009) {
+            error_log("Xendit amount mismatch on service checkout #$checkoutId: paid {$paid['amount']}, expected " . $c['total_price']);
+            $pdo->rollBack();
+            return null;
+        }
+        $pdo->prepare(
+            "INSERT INTO service_requests (user_id, service_id, area_id, service_street, scheduled_at, total_price, status)
+             VALUES (?,?,?,?,?,?, 'pending')"
+        )->execute([$c['user_id'], $c['service_id'], $c['area_id'], $c['service_street'], $c['scheduled_at'], $c['total_price']]);
+        $reqId = (int)$pdo->lastInsertId();
+        $pdo->prepare("INSERT INTO payments (service_request_id, amount, method, reference_no, status, paid_at) VALUES (?,?,?,?, 'paid', NOW())")
+            ->execute([$reqId, $c['total_price'], $paid['method'], $paid['id']]);
+        $pdo->prepare("UPDATE service_checkouts SET status = 'paid', service_request_id = ? WHERE id = ?")->execute([$reqId, $checkoutId]);
+        $pdo->commit();
+        return $reqId;
+    } catch (Throwable $ex) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        error_log('finalize_service_checkout failed: ' . $ex->getMessage());
+        return null;
+    }
+}
+
+// Refunds every paid payment of one service request (through Xendit for online payments). False if any refund failed.
+function refund_service_payments(PDO $pdo, int $requestId): bool {
+    $st = $pdo->prepare("SELECT id, amount, reference_no FROM payments WHERE service_request_id = ? AND status = 'paid'");
+    $st->execute([$requestId]);
+    $allOk = true;
+    foreach ($st->fetchAll() as $p) {
+        if (preg_match('/^[0-9a-f]{24}$/', (string)$p['reference_no'])) {
+            if (!xendit_enabled()) { $allOk = false; continue; }
+            [$code, $res] = xendit_request('POST', '/refunds', [
+                'invoice_id'   => $p['reference_no'],
+                'reference_id' => 'refund-service-' . $requestId . '-' . $p['id'],
+                'amount'       => (float)$p['amount'],
+                'currency'     => 'PHP',
+                'reason'       => 'REQUESTED_BY_CUSTOMER',
+            ]);
+            if ($code < 200 || $code >= 300) {
+                error_log("Xendit refund failed for service request #$requestId ($code): " . json_encode($res));
                 $allOk = false;
                 continue;
             }

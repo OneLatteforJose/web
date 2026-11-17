@@ -18,8 +18,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ok->execute([$area]);
         if ($name === '' || $len($name) > 150) {
             $err = 'Enter your full name.';
-        } elseif ($phone !== '' && !preg_match('/^[0-9+()\-\s]{7,30}$/', $phone)) {
-            $err = 'Enter a valid phone number, or leave it empty.';
+        } elseif ($phone !== '' && !preg_match('/^[0-9]{11}$/', $phone)) {
+            $err = 'Enter an 11-digit phone number, for example 09171234567, or leave it empty.';
         } elseif (!$ok->fetchColumn()) {
             $err = 'Select your city and barangay.';
         } elseif ($street === '' || $len($street) > 255) {
@@ -56,6 +56,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $v = fn(string $k, $fallback = '') => ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'details') ? ($_POST[$k] ?? '') : $fallback;
 $myCity = $me['city'] ? city_key($me['province'], $me['city']) : '';
 
+// The two forms stay closed until their button is clicked; one opens by itself when its submit failed.
+$open = $err !== '' ? ($_POST['action'] ?? '') : '';
+
 user_header('Profile', 'profile.php');
 if ($err) echo '<p class="alert">' . e($err) . '</p>';
 ?>
@@ -63,15 +66,20 @@ if ($err) echo '<p class="alert">' . e($err) . '</p>';
 <div class="main">
 <section class="panel" style="display:flex;gap:.8rem;align-items:center">
   <span class="ic" style="width:48px;height:48px;border-radius:50%"><?= uicon('user') ?></span>
-  <div><strong><?= e($me['full_name']) ?></strong><br><span class="muted"><?= e($me['email']) ?></span></div>
+  <div style="flex:1"><strong><?= e($me['full_name']) ?></strong><br><span class="muted"><?= e($me['email']) ?></span></div>
 </section>
 
-<section class="panel">
+<div style="display:flex;gap:.6rem;flex-wrap:wrap;margin:0 0 .9rem">
+  <button type="button" class="btn" data-toggle="details-panel" aria-expanded="<?= $open === 'details' ? 'true' : 'false' ?>" aria-controls="details-panel">Update profile</button>
+  <button type="button" class="btn alt" data-toggle="password-panel" aria-expanded="<?= $open === 'password' ? 'true' : 'false' ?>" aria-controls="password-panel">Change password</button>
+</div>
+
+<section class="panel" id="details-panel" <?= $open === 'details' ? '' : 'hidden' ?>>
   <h2>My details</h2>
   <form method="post" class="stack">
     <?= csrf_field() ?><input type="hidden" name="action" value="details">
     <label>Full name <input name="full_name" required maxlength="150" value="<?= e($v('full_name', $me['full_name'])) ?>"></label>
-    <label>Phone <input type="tel" name="phone" maxlength="30" value="<?= e($v('phone', (string)$me['phone'])) ?>"></label>
+    <label>Phone <input type="tel" name="phone" inputmode="numeric" maxlength="11" pattern="[0-9]{11}" title="11 digits, for example 09171234567" placeholder="09XXXXXXXXX" oninput="this.value=this.value.replace(/\D/g,'').slice(0,11)" value="<?= e($v('phone', (string)$me['phone'])) ?>"></label>
     <?php area_picker(['api' => 'api/areas.php', 'js' => 'assets/areas.js', 'city' => $v('city', $myCity), 'area_id' => (int)$v('area_id', (int)$me['area_id']), 'required' => true]); ?>
     <label>Street / house address <input name="street" required maxlength="255" value="<?= e($v('street', (string)$me['street'])) ?>"></label>
     <button class="btn">Save changes</button>
@@ -80,7 +88,7 @@ if ($err) echo '<p class="alert">' . e($err) . '</p>';
 
 </div>
 <div class="side">
-<section class="panel">
+<section class="panel" id="password-panel" <?= $open === 'password' ? '' : 'hidden' ?>>
   <h2>Change password</h2>
   <form method="post" class="stack">
     <?= csrf_field() ?><input type="hidden" name="action" value="password">
@@ -94,4 +102,24 @@ if ($err) echo '<p class="alert">' . e($err) . '</p>';
 <a class="btn danger" href="logout.php"><?= uicon('logout') ?> Log out</a>
 </div>
 </div>
+<script>
+// Each button opens its own form and closes the other one; clicking it again closes it.
+(function () {
+  var btns = document.querySelectorAll('[data-toggle]');
+  btns.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var target = document.getElementById(btn.getAttribute('data-toggle')), opening = target.hidden;
+      btns.forEach(function (b) {
+        var p = document.getElementById(b.getAttribute('data-toggle')), on = p === target && opening;
+        p.hidden = !on;
+        b.setAttribute('aria-expanded', on ? 'true' : 'false');
+      });
+      if (opening) {
+        target.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+        var f = target.querySelector('input'); if (f) f.focus({preventScroll: true});
+      }
+    });
+  });
+})();
+</script>
 <?php user_footer();

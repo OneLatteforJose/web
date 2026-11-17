@@ -10,6 +10,7 @@ if ($me && isset($landing[$me['role']])) {   // already signed in
 }
 
 $error = '';
+$notice = null;   // popup shown to a deactivated manager/provider or a blocked customer
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $st = db()->prepare(
@@ -26,7 +27,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($user['role'] === 'provider' && ($user['application_status'] ?? '') === 'rejected') {
             $error = 'Your provider application was not approved.' . ($user['review_note'] ? ' Reason: ' . $user['review_note'] : '');
         } elseif (!$user['is_active']) {
-            $error = 'Email or password is incorrect.';
+            // Only reached with the right password, so the status of an account is not shown to strangers.
+            $blocked = $user['role'] === 'customer';
+            $notice = [
+                'title' => $blocked ? 'Your account has been blocked' : 'Your account has been deactivated',
+                'text'  => ($blocked ? 'This customer account is blocked' : 'This ' . $user['role'] . ' account is deactivated') . ' and cannot log in.',
+                'word'  => $blocked ? 'blocked' : 'deactivated',
+            ];
         } elseif (isset($landing[$user['role']])) {
             session_regenerate_id(true);
             $_SESSION['user'] = ['id' => (int)$user['id'], 'role' => $user['role'], 'name' => $user['full_name']];
@@ -54,4 +61,24 @@ public_header('Log in', false, '', 'loginpage');
     <?php login_form($error); ?>
   </div>
 </section>
+<?php if ($notice): ?>
+<div id="acct-notice" role="alertdialog" aria-modal="true" aria-labelledby="acct-notice-title" aria-describedby="acct-notice-text"
+     style="position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:1rem;z-index:1000">
+  <div style="background:#fff;border-radius:14px;max-width:26rem;width:100%;padding:1.5rem 1.6rem;box-shadow:0 20px 50px rgba(0,0,0,.3)">
+    <h3 id="acct-notice-title" style="margin:0 0 .6rem;color:#9b1c1c"><?= e($notice['title']) ?></h3>
+    <p id="acct-notice-text" style="margin:0 0 .8rem"><?= e($notice['text']) ?> If you think this is a mistake, please email the admin:</p>
+    <p style="margin:0 0 1.2rem;font-weight:700"><a href="mailto:<?= e(ADMIN_CONTACT_EMAIL) ?>?subject=<?= rawurlencode('My account is ' . $notice['word']) ?>"><?= e(ADMIN_CONTACT_EMAIL) ?></a></p>
+    <button type="button" class="btn btn-road" id="acct-notice-close">OK</button>
+  </div>
+</div>
+<script>
+(function () {
+  var box = document.getElementById('acct-notice'), btn = document.getElementById('acct-notice-close');
+  function close() { box.remove(); }
+  btn.addEventListener('click', close);
+  document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') close(); });
+  btn.focus();
+})();
+</script>
+<?php endif; ?>
 <?php public_footer();

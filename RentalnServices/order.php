@@ -47,11 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($upd->rowCount() === 1) {
                 $pdo->commit();
                 $refunded = true;
-                if ($type === 'booking') {
-                    $refunded = refund_booking_payments($pdo, $id);   // real refund through Xendit
-                } else {
-                    $pdo->prepare("UPDATE payments SET status = 'refunded' WHERE $payCol = ? AND status = 'paid'")->execute([$id]);
-                }
+                $refunded = $type === 'booking' ? refund_booking_payments($pdo, $id) : refund_service_payments($pdo, $id);   // real refund through Xendit
                 flash($refunded ? 'Cancelled. Any online payment has been refunded.' : 'Cancelled, but we could not send your refund automatically. We will process it and contact you.');
                 header('Location: ' . $self);
                 exit;

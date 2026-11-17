@@ -105,3 +105,21 @@ function area_usage_sql(string $ref): string {
 function area_place(?string $barangay, ?string $city, ?string $street = null): string {
     return implode(', ', array_filter([$street, $barangay, $city]));
 }
+
+// Cities with an active manager AND at least one active provider, with what each one offers.
+function covered_cities(PDO $pdo): array {
+    return $pdo->query(
+        "SELECT ma.province, ma.city_municipality AS city, GROUP_CONCAT(DISTINCT mu.full_name ORDER BY mu.full_name SEPARATOR ', ') AS managers,
+                (SELECT COUNT(*) FROM users pu JOIN areas pa ON pa.id = pu.area_id
+                  WHERE pu.role = 'provider' AND pu.is_active = 1 AND pa.province = ma.province AND pa.city_municipality = ma.city_municipality) AS providers,
+                (SELECT COUNT(*) FROM vehicles v JOIN users vp ON vp.id = v.provider_id AND vp.is_active = 1 JOIN areas va ON va.id = v.area_id
+                  WHERE v.status <> 'unavailable' AND va.province = ma.province AND va.city_municipality = ma.city_municipality) AS vehicles,
+                (SELECT COUNT(*) FROM services s JOIN users sp ON sp.id = s.provider_id AND sp.is_active = 1 JOIN areas sa ON sa.id = s.area_id
+                  WHERE s.status = 'available' AND sa.province = ma.province AND sa.city_municipality = ma.city_municipality) AS services
+         FROM users mu JOIN areas ma ON ma.id = mu.area_id
+         WHERE mu.role = 'manager' AND mu.is_active = 1
+         GROUP BY ma.province, ma.city_municipality
+         HAVING providers > 0
+         ORDER BY ma.province, ma.city_municipality"
+    )->fetchAll();
+}

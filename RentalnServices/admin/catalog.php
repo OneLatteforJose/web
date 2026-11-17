@@ -8,7 +8,7 @@ $pdo = db();
 $tab    = ($_GET['tab'] ?? '') === 'services' ? 'services' : 'vehicles';
 $city   = parse_city_key($_GET['city'] ?? '') ? (string)$_GET['city'] : '';
 $status = $_GET['status'] ?? '';
-$allowedStatus = $tab === 'vehicles' ? ['available', 'booked', 'unavailable'] : ['available', 'unavailable'];
+$allowedStatus = $tab === 'vehicles' ? ['available', 'booked', 'unavailable', 'maintenance'] : ['available', 'unavailable'];
 if (!in_array($status, $allowedStatus, true)) $status = '';
 
 $alias = $tab === 'vehicles' ? 'v' : 's';

@@ -85,11 +85,12 @@ th,td{text-align:left;padding:.65rem .9rem;border-bottom:1px solid var(--line);f
 th{color:var(--muted);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.03em;background:#f8fbf9}
 tbody tr:last-child td{border-bottom:0} tbody tr:hover td{background:#f8fbf9}
 .badge{display:inline-block;padding:.12rem .6rem;border-radius:999px;font-size:.78rem;font-weight:700;background:#edf0ee;color:#4a5750}
-.badge-pending,.badge-booked{background:#fdf1d3;color:#8a5d00}
+.badge-pending,.badge-booked,.badge-maintenance{background:#fdf1d3;color:#8a5d00}
 .badge-approved,.badge-available,.badge-active,.badge-paid{background:#dff1e5;color:#13633d}
 .badge-completed,.badge-refunded{background:#e1edf8;color:#1b4b7a}
 .badge-rejected,.badge-failed{background:#fbe3e3;color:#9b1c1c}
 .badge-cancelled,.badge-unavailable,.badge-deactivated{background:#eceeed;color:#59635d}
+.badge-blocked{background:#fbe3e3;color:#9b1c1c}
 
 /* ---- forms ---- */
 form.box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1.1rem 1.2rem;margin-bottom:1.25rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.8rem;align-items:end}

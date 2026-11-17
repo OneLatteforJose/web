@@ -5,7 +5,7 @@ $pdo = db();
 [$cond, $cp] = city_filter($m['key'], 'a');
 
 $types    = ['car' => 'Car', 'van' => 'Van', 'truck' => 'Truck'];
-$statuses = ['available' => 'Available', 'booked' => 'Booked', 'unavailable' => 'Unavailable'];
+$statuses = ['available' => 'Available', 'booked' => 'Booked', 'unavailable' => 'Unavailable', 'maintenance' => 'Under maintenance'];
 $providers = my_providers($pdo, $m);
 $barangays = my_barangays($pdo, $m);
 $drivers   = my_driver_services($pdo, $m, false);
@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $err = "The vehicle's own driver must be a driver service offered by the same provider.";
     } elseif (db_value($pdo, "SELECT 1 FROM vehicles WHERE plate_no = ? AND id <> ? LIMIT 1", [$f['plate_no'], $editId])) {
         $err = 'That plate number is already registered.';
-    } elseif ($edit && $f['status'] === 'unavailable' && db_value($pdo,
+    } elseif ($edit && in_array($f['status'], ['unavailable', 'maintenance'], true) && db_value($pdo,
             "SELECT 1 FROM bookings WHERE vehicle_id = ? AND status IN ('pending','approved') AND end_at > NOW() LIMIT 1", [$editId])) {
         $err = 'This vehicle still has pending or upcoming approved bookings, so it cannot be marked unavailable yet.';
     } else {
@@ -103,7 +103,7 @@ $st->execute($params);
 $rows = $st->fetchAll();
 foreach ($rows as &$r) {
     $r['type'] = ucfirst($r['type']);
-    $r['status'] = ucfirst($r['status']);
+    $r['status'] = $r['status'] === 'maintenance' ? 'Under maintenance' : ucfirst($r['status']);
     $r['rate_per_day'] = peso($r['rate_per_day']);
     $r['own_driver'] = $r['own_driver'] ?: '-';
 }
