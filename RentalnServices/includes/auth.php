@@ -17,6 +17,12 @@ function csrf_token(): string {
     return $_SESSION['csrf'];
 }
 
+// Where to continue after a visitor logs in or signs up to finish a booking. Only our own booking pages are accepted,
+// so the "next" value can never send anyone to another site.
+function safe_next($n): string {
+    return preg_match('/^(book|book_service)\.php\?id=\d+&resume=1$/', (string)$n) ? (string)$n : '';
+}
+
 function csrf_field(): string {
     return '<input type="hidden" name="csrf" value="' . e(csrf_token()) . '">';
 }

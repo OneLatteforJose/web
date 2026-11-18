@@ -77,6 +77,22 @@ if ($sel) {
         $err = $err ?: 'That city was not found.';
     }
 }
+// Clicking the Providers or Customers row lists the people behind the number.
+$list = in_array($_GET['list'] ?? '', ['providers', 'customers'], true) ? $_GET['list'] : '';
+$people = [];
+$pg = null;
+if ($city && $list !== '') {
+    $role = $list === 'providers' ? 'provider' : 'customer';
+    $extra = $role === 'provider' ? " AND COALESCE(pp.application_status, 'approved') = 'approved'" : '';
+    $from = "FROM users u JOIN areas ua ON ua.id = u.area_id LEFT JOIN provider_profiles pp ON pp.user_id = u.id
+             WHERE u.role = '$role'$extra AND ua.province = ? AND ua.city_municipality = ?";
+    $cnt = $pdo->prepare("SELECT COUNT(*) $from");
+    $cnt->execute($sel);
+    $pg = paginate((int)$cnt->fetchColumn(), 25);
+    $q = $pdo->prepare("SELECT u.id, u.full_name, u.email, u.phone, ua.barangay, u.is_active, pp.business_name $from ORDER BY u.full_name LIMIT {$pg['per']} OFFSET {$pg['offset']}");
+    $q->execute($sel);
+    $people = $q->fetchAll();
+}
 $totals = $pdo->query("SELECT COUNT(*) AS barangays, COUNT(DISTINCT province, city_municipality) AS cities FROM areas")->fetch();
 $cityKey = $city ? city_key($city['province'], $city['name']) : '';
 $posted = ($_POST['action'] ?? '') === 'add';
@@ -130,12 +146,33 @@ document.addEventListener('change', function (e) {
         <span class="muted" style="font-weight:400">No manager yet<?= $city['inactive'] ? ' (' . $city['inactive'] . ' deactivated)' : '' ?></span>
       <?php endif; ?></b></div>
     <div class="row"><span>Barangays</span><b><?= number_format($city['barangays']) ?></b></div>
-    <div class="row"><span>Providers</span><b><?= number_format($city['providers']) ?></b></div>
-    <div class="row"><span>Customers</span><b><?= number_format($city['customers']) ?></b></div>
+    <a class="row" style="text-decoration:none;color:inherit<?= $list === 'providers' ? ';background:#eef5f0' : '' ?>" href="areas.php?key=<?= e(urlencode($cityKey)) ?>&amp;list=providers#people"><span>Providers</span><b><?= number_format($city['providers']) ?> &rsaquo;</b></a>
+    <a class="row" style="text-decoration:none;color:inherit<?= $list === 'customers' ? ';background:#eef5f0' : '' ?>" href="areas.php?key=<?= e(urlencode($cityKey)) ?>&amp;list=customers#people"><span>Customers</span><b><?= number_format($city['customers']) ?> &rsaquo;</b></a>
   </div>
   <?php if (!$city['manager']): ?>
     <p class="muted" style="margin-bottom:0">Until a manager is assigned, nobody can approve bookings or service requests in this city.</p>
   <?php endif; ?>
+</section>
+<?php endif; ?>
+
+<?php if ($city && $list !== ''): ?>
+<section class="panel" id="people">
+  <div class="cityhead"><h3><?= $list === 'providers' ? 'Providers' : 'Customers' ?> in <?= e($city['name']) ?></h3>
+    <div class="acts"><a class="btn-link alt" href="areas.php?key=<?= e(urlencode($cityKey)) ?>">Close</a></div></div>
+  <?php if (!$people): ?><p class="muted">No <?= $list ?> in this city yet.</p><?php else: ?>
+  <div class="scroll"><table>
+    <thead><tr><th>Name</th><?php if ($list === 'providers'): ?><th>Business</th><?php endif; ?><th>Email</th><th>Phone</th><th>Barangay</th><th>Status</th></tr></thead>
+    <tbody>
+    <?php foreach ($people as $u): ?>
+      <tr>
+        <td><a href="account.php?id=<?= (int)$u['id'] ?>"><?= e($u['full_name']) ?></a></td>
+        <?php if ($list === 'providers'): ?><td><?= e($u['business_name'] ?: '-') ?></td><?php endif; ?>
+        <td><?= e($u['email']) ?></td><td><?= e($u['phone'] ?: '-') ?></td><td><?= e($u['barangay']) ?></td>
+        <td><?= $u['is_active'] ? 'Active' : ($list === 'customers' ? 'Blocked' : 'Deactivated') ?></td>
+      </tr>
+    <?php endforeach; ?>
+    </tbody></table></div>
+  <?php render_pager($pg); endif; ?>
 </section>
 <?php endif; ?>
 

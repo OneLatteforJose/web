@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/provider.php';
+require_once __DIR__ . '/../includes/decisions.php';
 $p = require_provider();
 $pdo = db();
 $me = (int)$p['id'];
@@ -30,6 +31,19 @@ if (!$j) {
     header('Location: jobs.php');
     exit;
 }
+$canDecide = $type === 'booking' ? (int)$j['vprov'] === $me : true;   // the owner of the vehicle / service decides; a driver-only job is the owner's call
+$err = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canDecide) {
+    csrf_check();
+    [$msg, $err] = decide_order($pdo, $type, $id, $_POST['action'] ?? '', $me, ['note' => $_POST['note'] ?? '']);
+    if ($msg !== '') {
+        flash($msg);
+        header('Location: job.php?type=' . $type . '&id=' . $id);
+        exit;
+    }
+    $st->execute($type === 'booking' ? [$id, $me, $me] : [$id, $me]);
+    $j = $st->fetch();
+}
 $known = in_array($j['status'], ['approved', 'completed'], true);   // customer contact details only after approval
 $mine = $type === 'booking' ? (int)$j['vprov'] === $me : true;       // owns the vehicle / service (a driver-only job has no payment or review for them)
 $yours = $type === 'request' ? 'Service' : ((int)$j['vprov'] === $me ? ((int)$j['dprov'] === $me ? 'Vehicle and driver' : 'Vehicle') : 'Driver');
@@ -51,8 +65,9 @@ provider_header(($type === 'booking' ? 'Vehicle booking #' : 'Service request #'
 $where = implode(', ', array_filter([$j['barangay'] ?? '', $j['city'] ?? '']));
 ?>
 <p><a href="jobs.php">&larr; Back to jobs</a></p>
+<?php if ($err) echo '<p class="err">' . e($err) . '</p>'; ?>
 <div class="stats">
-  <?= stat_card('calendar', ucfirst($j['status']), 'Status', $j['status'] === 'pending' ? 'waiting for a manager' : '') ?>
+  <?= stat_card('calendar', ucfirst($j['status']), 'Status', $j['status'] === 'pending' ? 'waiting for approval' : '') ?>
   <?= stat_card('chart', peso($j['total_price']), 'Total price', 'paid online by the customer') ?>
   <?= stat_card('briefcase', $yours, 'Your part', '') ?>
 </div>
@@ -78,6 +93,22 @@ if ($type === 'booking') {
         'Submitted' => fmt_when($j['created_at']),
     ]);
 }
+if ($canDecide) {
+    $startAt = $type === 'booking' ? $j['start_at'] : $j['scheduled_at'];
+    echo '<h2>Decision</h2><div class="panel">';
+    if ($j['status'] === 'pending') {
+        echo '<div class="actions"><form method="post">' . csrf_field() . '<input type="hidden" name="action" value="approve"><button>Approve</button></form>'
+           . '<form method="post" onsubmit="return confirm(\'Reject this job? The customer is refunded.\')">' . csrf_field() . '<input type="hidden" name="action" value="reject">'
+           . '<label>Note (optional) <input name="note" maxlength="150"></label><button class="danger">Reject</button></form></div>';
+    } elseif ($j['status'] === 'approved' && strtotime($startAt) <= time()) {
+        echo '<form method="post" class="actions" onsubmit="return confirm(\'Mark this job as completed?\')">' . csrf_field() . '<input type="hidden" name="action" value="complete"><button>Mark completed</button></form>';
+    } elseif ($j['status'] === 'approved') {
+        echo '<p class="muted" style="margin:0">Approved. You can mark it completed once it has started.</p>';
+    } else {
+        echo '<p class="muted" style="margin:0">This job is ' . e($j['status']) . ' and can no longer be changed.</p>';
+    }
+    echo '</div>';
+}
 if ($mine) {
     echo '<h2>Payments</h2>';
     render_table(['id' => '#', 'amount' => 'Amount', 'method' => 'Method', 'status' => 'Status', 'paid_at' => 'Paid at'], $payments);
@@ -86,5 +117,5 @@ if ($mine) {
         render_kv(['Rating' => $review['rating'] . ' / 5', 'Comment' => $review['comment']]);
     }
 }
-echo '<p class="muted">The manager of ' . e($j['city'] ?: 'the city') . ' approves, rejects and completes jobs. If something looks wrong, contact them.</p>';
+echo '<p class="muted">The manager of ' . e($j['city'] ?: 'the city') . ' and the admin can also approve, reject and complete jobs.</p>';
 page_footer();

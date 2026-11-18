@@ -4,8 +4,9 @@ require_once __DIR__ . '/includes/site.php';
 
 $landing = ['admin' => 'admin/dashboard.php', 'manager' => 'manager/dashboard.php', 'provider' => 'provider/dashboard.php', 'customer' => 'home.php'];
 $me = $_SESSION['user'] ?? null;
+$next = safe_next($_POST['next'] ?? $_GET['next'] ?? '');
 if ($me && isset($landing[$me['role']])) {   // already signed in
-    header('Location: ' . $landing[$me['role']]);
+    header('Location: ' . ($me['role'] === 'customer' && $next !== '' ? $next : $landing[$me['role']]));
     exit;
 }
 
@@ -40,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($user['role'] !== 'customer') {
                 log_action('login', 'user', (int)$user['id'], ucfirst($user['role']) . ' signed in');
             }
-            header('Location: ' . $landing[$user['role']]);
+            header('Location: ' . ($user['role'] === 'customer' && $next !== '' ? $next : $landing[$user['role']]));
             exit;
         } else {
             $error = 'This account cannot sign in yet.';

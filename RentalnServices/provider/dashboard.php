@@ -12,6 +12,10 @@ provider_header('Dashboard', 'dashboard.php');
 if ($vTotal + $sTotal === 0) {
     echo '<p class="note">You have no vehicles or services listed yet. You can propose a service on the <a href="services.php">Services</a> page, and the manager of ' . e($p['city'] ?: 'your city') . ' or an admin approves it. The manager adds vehicles for you.</p>';
 }
+$waitingJobs = provider_pending_count($pdo, $me);
+if ($waitingJobs > 0) {
+    echo '<p class="note"><b>' . plural($waitingJobs, 'job') . '</b> waiting for your approval. <a href="jobs.php?status=pending">Review and approve</a>.</p>';
+}
 [$subWaiting, $subRejected] = provider_submission_counts($pdo, $me);
 if ($subWaiting + $subRejected > 0) {
     echo '<p class="note">' . ($subWaiting ? '<b>' . plural($subWaiting, 'service') . '</b> waiting for approval. ' : '')

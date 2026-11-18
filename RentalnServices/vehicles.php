@@ -42,7 +42,7 @@ $qs = function (array $over) use ($q, $vtype, $scope, $cityKey): string {
 };
 
 user_header($area ? 'Vehicles in ' . $area[1] : 'Vehicles', 'vehicles.php', $guest ? ['guest' => true, 'back' => 'index.php#vehicles'] : ($area ? ['back' => 'index.php#vehicles'] : []));
-if ($guest): ?><p class="muted" style="margin:0 0 .7rem"><?= e($area[1]) ?>, <?= e($area[0]) ?>. <a href="login.php">Log in</a> or <a href="register.php">sign up</a> to book.</p><?php endif;
+if ($guest): ?><p class="muted" style="margin:0 0 .7rem"><?= e($area[1]) ?>, <?= e($area[0]) ?>. Pick one and book it now. You log in or <a href="register.php">sign up</a> only when you pay.</p><?php endif;
 ?>
 <form method="get" class="find" style="margin-bottom:.7rem">
   <?= uicon('search') ?>
@@ -63,7 +63,7 @@ if ($guest): ?><p class="muted" style="margin:0 0 .7rem"><?= e($area[1]) ?>, <?=
 <?php else: ?>
 <div class="list">
   <?php foreach ($rows as $v): $av = vehicle_availability($v, $states[(int)$v['id']] ?? null); ?>
-    <a class="row" href="vehicle.php?id=<?= (int)$v['id'] ?>"<?= $av['code'] === 'available' ? '' : ' style="opacity:.78"' ?>>
+    <a class="row" href="vehicle.php?id=<?= (int)$v['id'] ?><?= $guest && $area ? '&amp;city=' . e(urlencode(city_key($area[0], $area[1]))) : '' ?>"<?= $av['code'] === 'available' ? '' : ' style="opacity:.78"' ?>>
       <span class="ic"><?= uicon('car') ?></span>
       <span class="grow"><span class="t"><?= e($v['model']) ?></span><br><span class="d"><?= e(ucfirst($v['type'])) ?><?= $v['capacity'] ? ', ' . e($v['capacity']) : '' ?>, <?= e($v['city']) ?><?= $v['own_driver_id'] ? ', driver available' : '' ?></span><br><?php if ($av['code'] !== 'available'): ?><span class="chip st-<?= $av['code'] === 'maintenance' ? 'pending' : 'rejected' ?>"><?= e($av['label']) ?></span><br><?php endif; ?><?= stars($v['rating'] !== null ? (float)$v['rating'] : null, (int)$v['reviews']) ?></span>
       <span class="end"><strong><?= e(peso($v['rate_per_day'])) ?></strong><br><span class="muted">per day</span></span>

@@ -107,17 +107,18 @@ function vehicle_states(PDO $pdo, array $ids): array {
     if (!$ids) return [];
     $now = date('Y-m-d H:i:s');
     $st = $pdo->prepare(
-        "SELECT vehicle_id, MIN(CASE WHEN start_at <= ? THEN end_at END) AS rented_until, MIN(CASE WHEN start_at > ? THEN start_at END) AS next_start
-         FROM bookings WHERE status = 'approved' AND end_at > ? AND vehicle_id IN (" . implode(',', array_fill(0, count($ids), '?')) . ") GROUP BY vehicle_id"
+        "SELECT vehicle_id, MIN(CASE WHEN start_at <= ? THEN end_at END) AS rented_until, MIN(CASE WHEN start_at > ? THEN start_at END) AS next_start,
+                (SELECT b2.end_at FROM bookings b2 WHERE b2.vehicle_id = b.vehicle_id AND b2.status = 'approved' AND b2.start_at > ? ORDER BY b2.start_at LIMIT 1) AS next_end
+         FROM bookings b WHERE status = 'approved' AND end_at > ? AND vehicle_id IN (" . implode(',', array_fill(0, count($ids), '?')) . ") GROUP BY vehicle_id"
     );
-    $st->execute(array_merge([$now, $now, $now], $ids));
+    $st->execute(array_merge([$now, $now, $now, $now], $ids));
     $out = [];
     foreach ($st->fetchAll() as $r) $out[(int)$r['vehicle_id']] = $r;
     return $out;
 }
 
 // What a customer is told about one vehicle: ['code' => available|rented|maintenance|unavailable, 'label' => .., 'note' => ..].
-// "rented" = an approved trip is running right now (or the manager flagged it booked); it is not bookable until it is back.
+// "rented" = an approved trip is running now or is booked for later (or the manager flagged it booked); it is not bookable until that trip is over.
 function vehicle_availability(array $v, ?array $state): array {
     $fmt = fn(string $dt): string => date('M j, Y g:i A', strtotime($dt));
     if ($v['status'] === 'maintenance') {
@@ -128,6 +129,9 @@ function vehicle_availability(array $v, ?array $state): array {
     }
     if (!empty($state['rented_until'])) {
         return ['code' => 'rented', 'label' => 'Unavailable: already rented', 'note' => 'Already rented. It is expected back on ' . $fmt($state['rented_until']) . '.'];
+    }
+    if (!empty($state['next_start'])) {   // approved and paid, even if the trip has not started yet
+        return ['code' => 'rented', 'label' => 'Unavailable: already rented', 'note' => 'Already booked from ' . $fmt($state['next_start']) . ($state['next_end'] ? ' to ' . $fmt($state['next_end']) : '') . '.'];
     }
     if ($v['status'] === 'booked') {
         return ['code' => 'rented', 'label' => 'Unavailable: already rented', 'note' => 'Already rented.'];

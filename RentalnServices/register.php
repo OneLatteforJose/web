@@ -6,8 +6,9 @@ require_once __DIR__ . '/includes/areas.php';
 
 $signedInAs = $_SESSION['user']['role'] ?? '';
 $landing = ['admin' => 'admin/dashboard.php', 'manager' => 'manager/dashboard.php', 'customer' => 'home.php'];
+$next = safe_next($_POST['next'] ?? $_GET['next'] ?? '');
 if (isset($landing[$signedInAs])) {
-    header('Location: ' . $landing[$signedInAs]);
+    header('Location: ' . ($signedInAs === 'customer' && $next !== '' ? $next : $landing[$signedInAs]));
     exit;
 }
 
@@ -81,8 +82,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             )->execute([$f['full_name'], $f['email'], $f['phone'] ?: null, password_hash($pass, PASSWORD_DEFAULT), $f['area_id'], $f['street']]);
             session_regenerate_id(true);
             $_SESSION['user'] = ['id' => (int)$pdo->lastInsertId(), 'role' => 'customer', 'name' => $f['full_name']];
-            flash('Your account is ready.');
-            header('Location: home.php');
+            flash($next !== '' ? 'Your account is ready. Confirm your booking below to pay.' : 'Your account is ready.');
+            header('Location: ' . ($next !== '' ? $next : 'home.php'));
             exit;
         } catch (PDOException $ex) {
             if ($pdo->inTransaction()) $pdo->rollBack();
@@ -119,7 +120,7 @@ public_header($as === 'provider' ? 'Become a provider' : 'Create an account');
         <p class="intro">Tell us about you and what you offer. A manager in your city or an admin checks every application before the account is switched on. Already registered? <a href="login.php">Log in</a>.</p>
       <?php else: ?>
         <h2>Create an account</h2>
-        <p class="intro">Sign up to book vehicles or request services in your area. Already registered? <a href="login.php">Log in</a>.</p>
+        <p class="intro">Sign up to book vehicles or request services in your area. Already registered? <a href="login.php<?= $next !== '' ? '?next=' . e(urlencode($next)) : '' ?>">Log in</a>.</p>
       <?php endif; ?>
     </div>
     <?php if ($submitted): ?>
@@ -130,6 +131,7 @@ public_header($as === 'provider' ? 'Become a provider' : 'Create an account');
     <form method="post" action="register.php<?= $as === 'provider' ? '?as=provider' : '' ?>" class="formcard" autocomplete="on">
       <?php if ($err): ?><p class="alert" role="alert"><?= e($err) ?></p><?php endif; ?>
       <?= csrf_field() ?>
+      <?php if ($next !== '' && $as !== 'provider'): ?><input type="hidden" name="next" value="<?= e($next) ?>"><?php endif; ?>
       <div class="hp" aria-hidden="true"><label>Website <input name="website" tabindex="-1" autocomplete="off"></label></div>
       <label>Full name <input name="full_name" autocomplete="name" required maxlength="150" value="<?= e($f['full_name']) ?>"></label>
       <?php if ($as === 'provider'): ?>

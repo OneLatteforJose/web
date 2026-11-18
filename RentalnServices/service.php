@@ -1,7 +1,8 @@
 <?php
 require_once __DIR__ . '/includes/user.php';
 require_once __DIR__ . '/includes/xendit.php';
-$me = require_user();
+$me = browse_user();
+$guest = !empty($me['guest']);
 $pdo = db();
 
 $id = (int)($_GET['id'] ?? 0);
@@ -26,9 +27,9 @@ $st = $pdo->prepare(
 );
 $st->execute([$id]);
 $reviews = $st->fetchAll();
-$sameCity = $me['city'] && $me['province'] === $s['province'] && $me['city'] === $s['city'];
+$sameCity = $guest || $me['city'] && $me['province'] === $s['province'] && $me['city'] === $s['city'];
 
-user_header($s['title'], 'services.php', ['back' => 'services.php']);
+user_header($s['title'], 'services.php', ['back' => $guest ? 'services.php?city=' . urlencode((string)($_GET['city'] ?? '')) : 'services.php'] + ($guest ? ['guest' => true] : []));
 ?>
 <div class="cols">
 <section class="panel main">
@@ -49,8 +50,9 @@ user_header($s['title'], 'services.php', ['back' => 'services.php']);
 <?php if (!$sameCity): ?><p class="alert">This service is only offered in <?= e($s['city']) ?>. Services can be requested in your own city.</p><?php endif; ?>
 <?php if ($s['status'] !== 'available'): ?><button class="btn" disabled>Not available right now</button>
 <?php elseif (!$sameCity): ?><button class="btn" disabled>Book now</button>
-<?php elseif (!xendit_enabled()): ?><button class="btn" disabled>Book now</button><p class="hint">Online payment is not set up yet.</p>
+<?php elseif (!$guest && !xendit_enabled()): ?><button class="btn" disabled>Book now</button><p class="hint">Online payment is not set up yet.</p>
 <?php else: ?><a class="btn" href="book_service.php?id=<?= (int)$s['id'] ?>">Book now</a>
+<?php if ($guest): ?><p class="hint">No account needed to start. You log in or sign up when you are ready to pay.</p><?php endif; ?>
 <p class="hint">Pay with GCash, Maya or a card. Refunded in full if the manager rejects it or you cancel while it is pending.</p><?php endif; ?>
 </div>
 

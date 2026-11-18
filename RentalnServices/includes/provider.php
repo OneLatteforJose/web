@@ -45,9 +45,18 @@ function provider_soon(PDO $pdo, int $me): int {
         [$me, $me, $me]);
 }
 
+// Pending jobs this provider can decide: bookings of their own vehicles and requests for their own services.
+function provider_pending_count(PDO $pdo, int $me): int {
+    return (int)prov_value($pdo,
+        "SELECT (SELECT COUNT(*) FROM bookings b JOIN vehicles v ON v.id = b.vehicle_id WHERE b.status = 'pending' AND v.provider_id = ?)
+              + (SELECT COUNT(*) FROM service_requests r JOIN services s ON s.id = r.service_id WHERE r.status = 'pending' AND s.provider_id = ?)",
+        [$me, $me]);
+}
+
 function provider_header(string $title, string $active = ''): void {
     $p = require_provider();
     $soon = provider_soon(db(), (int)$p['id']);
+    $waiting = provider_pending_count(db(), (int)$p['id']);
     shell_header($title, $active, [
         'dashboard.php' => ['Dashboard', 'home'],
         'jobs.php'      => ['Jobs', 'calendar'],
@@ -58,9 +67,9 @@ function provider_header(string $title, string $active = ''): void {
         'suffix'    => 'Provider',
         'name'      => $p['business_name'] ?: $p['full_name'],
         'city'      => $p['city'] ? $p['city'] . ', ' . $p['province'] : '',
-        'bell'      => $soon,
-        'bellHref'  => 'jobs.php?status=approved',
-        'bellLabel' => 'jobs in the next 3 days',
+        'bell'      => $waiting ?: $soon,
+        'bellHref'  => $waiting ? 'jobs.php?status=pending' : 'jobs.php?status=approved',
+        'bellLabel' => $waiting ? 'jobs waiting for your approval' : 'jobs in the next 3 days',
     ]);
 }
 

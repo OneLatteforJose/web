@@ -52,7 +52,7 @@ $qs = function (array $over) use ($q, $group, $cityKey): string {
 };
 
 user_header($area ? 'Services in ' . $area[1] : 'Services', 'services.php', $guest ? ['guest' => true, 'back' => 'index.php#services'] : ($area ? ['back' => 'index.php#services'] : []));
-if ($guest): ?><p class="muted" style="margin:0 0 .7rem"><?= e($area[1]) ?>, <?= e($area[0]) ?>. <a href="login.php">Log in</a> or <a href="register.php">sign up</a> to book.</p><?php endif;
+if ($guest): ?><p class="muted" style="margin:0 0 .7rem"><?= e($area[1]) ?>, <?= e($area[0]) ?>. Pick one and book it now. You log in or <a href="register.php">sign up</a> only when you pay.</p><?php endif;
 ?>
 <form method="get" class="find" style="margin-bottom:.7rem">
   <?= uicon('search') ?>
@@ -80,7 +80,7 @@ if ($guest): ?><p class="muted" style="margin:0 0 .7rem"><?= e($area[1]) ?>, <?=
 <?php else: ?>
 <div class="list">
   <?php foreach ($rows as $s): ?>
-    <a class="row" href="service.php?id=<?= (int)$s['id'] ?>">
+    <a class="row" href="service.php?id=<?= (int)$s['id'] ?><?= $guest && $area ? '&amp;city=' . e(urlencode(city_key($area[0], $area[1]))) : '' ?>">
       <span class="ic"><?= uicon(category_icon($s['category'])) ?></span>
       <span class="grow"><span class="t"><?= e($s['title']) ?></span><br><span class="d"><?= e(category_label($s['category'])) ?>, <?= e($s['barangay']) ?></span><br><?= stars($s['rating'] !== null ? (float)$s['rating'] : null, (int)$s['reviews']) ?></span>
       <span class="end"><strong><?= e(peso($s['rate'])) ?></strong></span>

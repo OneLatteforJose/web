@@ -34,6 +34,7 @@ $st = $pdo->prepare(
             (SELECT COUNT(*) FROM bookings b WHERE b.vehicle_id = v.id AND b.status = 'pending' AND b.end_at > NOW()) AS pending_jobs,
             (SELECT MIN(b.end_at) FROM bookings b WHERE b.vehicle_id = v.id AND b.status = 'approved' AND b.start_at <= NOW() AND b.end_at > NOW()) AS rented_until,
             (SELECT MIN(b.start_at) FROM bookings b WHERE b.vehicle_id = v.id AND b.status = 'approved' AND b.start_at > NOW()) AS next_start,
+            (SELECT b.end_at FROM bookings b WHERE b.vehicle_id = v.id AND b.status = 'approved' AND b.start_at > NOW() ORDER BY b.start_at LIMIT 1) AS next_end,
             (SELECT ROUND(AVG(rv.rating), 1) FROM reviews rv JOIN bookings b ON b.id = rv.booking_id WHERE b.vehicle_id = v.id) AS rating,
             (SELECT COUNT(*) FROM reviews rv JOIN bookings b ON b.id = rv.booking_id WHERE b.vehicle_id = v.id) AS reviews
      FROM vehicles v LEFT JOIN areas a ON a.id = v.area_id LEFT JOIN services ds ON ds.id = v.own_driver_id
@@ -63,7 +64,7 @@ if (!$rows) {
     $on = !in_array($r['status'], ['unavailable', 'maintenance'], true);
     $locked = $on && (int)$r['open_jobs'] > 0;   // rented or booked: it cannot be taken out of service until the bookings end
     if ($r['rented_until'])      { $why = 'Rented until ' . fmt_when($r['rented_until']); }
-    elseif ($r['next_start'])    { $why = 'Next booking starts ' . fmt_when($r['next_start']); }
+    elseif ($r['next_start'])    { $why = 'Booked for ' . fmt_when($r['next_start']) . ($r['next_end'] ? ' to ' . fmt_when($r['next_end']) : ''); }
     elseif ($r['pending_jobs'])  { $why = plural((int)$r['pending_jobs'], 'booking') . ' waiting for approval'; }
     else                         { $why = ''; }
 ?>
@@ -75,7 +76,7 @@ if (!$rows) {
       <td><?= e($r['own_driver'] ?: '-') ?></td>
       <td><?= $r['reviews'] ? e($r['rating'] . ' (' . $r['reviews'] . ')') : '-' ?></td>
       <td><?= (int)$r['open_jobs'] ?></td>
-      <td><?php if ($on && $r['rented_until']): ?><span class="badge badge-booked">Rented now</span><?php else: ?><span class="badge badge-<?= e($r['status']) ?>"><?= e($r['status'] === 'maintenance' ? 'Under maintenance' : ucfirst($r['status'])) ?></span><?php endif; ?>
+      <td><?php if ($on && ($r['rented_until'] || $r['next_start'])): ?><span class="badge badge-booked"><?= $r['rented_until'] ? 'Rented now' : 'Already rented' ?></span><?php else: ?><span class="badge badge-<?= e($r['status']) ?>"><?= e($r['status'] === 'maintenance' ? 'Under maintenance' : ucfirst($r['status'])) ?></span><?php endif; ?>
         <?php if ($locked && $why): ?><br><span class="muted" style="font-size:.85rem"><?= e($why) ?></span><?php endif; ?></td>
       <td class="act">
         <form method="post">

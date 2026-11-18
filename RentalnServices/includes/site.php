@@ -73,10 +73,12 @@ if (!defined('ADMIN_CONTACT_EMAIL')) {
 }
 
 function login_form(string $error = ''): void {
+    $next = safe_next($_POST['next'] ?? $_GET['next'] ?? '');
     ?>
 <form method="post" action="login.php" class="formcard">
   <?php if ($error): ?><p class="alert" role="alert"><?= e($error) ?></p><?php endif; ?>
   <?= csrf_field() ?>
+  <?php if ($next !== ''): ?><input type="hidden" name="next" value="<?= e($next) ?>"><p class="notice" style="margin:0">Log in to pay for your booking. Your choices are saved.</p><?php endif; ?>
   <label>Email
     <input type="email" name="email" autocomplete="email" value="<?= e(trim($_POST['email'] ?? '')) ?>" required autofocus>
   </label>
@@ -85,7 +87,7 @@ function login_form(string $error = ''): void {
   </label>
   <label class="showpw"><input type="checkbox" id="showpw"> Show password</label>
   <button class="btn btn-road">Log in</button>
-  <p style="margin:0;font-size:.9rem">New here? <a href="register.php">Create an account</a></p>
+  <p style="margin:0;font-size:.9rem">New here? <a href="register.php<?= $next !== '' ? '?next=' . e(urlencode($next)) : '' ?>">Create an account</a></p>
 </form>
 <script>
 document.getElementById('showpw').addEventListener('change', function () {

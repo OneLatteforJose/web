@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/layout.php';
 require_once __DIR__ . '/../includes/areas.php';
+require_once __DIR__ . '/../includes/decisions.php';
 require_admin();
 $pdo = db();
 
@@ -28,6 +29,20 @@ if (!$r) {
     exit;
 }
 
+$err = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_check();
+    [$msg, $err] = decide_order($pdo, 'request', $id, $_POST['action'] ?? '', (int)$_SESSION['user']['id'], ['note' => $_POST['note'] ?? '']);
+    if ($msg !== '') {
+        flash($msg);
+        header('Location: request.php?id=' . $id);
+        exit;
+    }
+    $st->execute([$id]);
+    $r = $st->fetch();
+}
+$started = strtotime($r['scheduled_at']) <= time();
+
 $pay = $pdo->prepare("SELECT id, amount, method, reference_no, status, paid_at FROM payments WHERE service_request_id = ? ORDER BY id");
 $pay->execute([$id]);
 $payments = $pay->fetchAll();
@@ -40,6 +55,7 @@ $place = 'area_place';
 page_header('Service request #' . $id, 'activity.php');
 ?>
 <p><a href="activity.php?tab=requests">&larr; Back to activity</a></p>
+<?php if ($err) echo '<p class="err">' . e($err) . '</p>'; ?>
 <div class="grid">
   <div class="card"><div class="n" style="font-size:1.2rem"><?= e(ucfirst($r['status'])) ?></div><div class="l">Status</div></div>
   <div class="card"><div class="n"><?= money($r['total_price']) ?></div><div class="l">Total price</div></div>
@@ -63,8 +79,32 @@ page_header('Service request #' . $id, 'activity.php');
     'Scheduled' => $r['scheduled_at'],
     'Service location' => $place($r['service_barangay'], $r['service_city'], $r['service_street']),
     'Approving city' => $r['service_city'] . ', ' . $r['service_province'],
-    'Reviewed by (manager)' => $r['reviewer'],
+    'Reviewed by' => $r['reviewer'],
 ]); ?>
+
+<h2>Decision</h2>
+<div class="panel">
+<?php if ($r['status'] === 'pending'): ?>
+  <div class="actions">
+    <form method="post">
+      <?= csrf_field() ?><input type="hidden" name="action" value="approve"><button>Approve request</button>
+    </form>
+    <form method="post" onsubmit="return confirm('Reject this request? The customer is refunded.')">
+      <?= csrf_field() ?><input type="hidden" name="action" value="reject">
+      <label>Note (optional, kept in the log) <input name="note" maxlength="150"></label>
+      <button class="danger">Reject</button>
+    </form>
+  </div>
+<?php elseif ($r['status'] === 'approved' && $started): ?>
+  <form method="post" class="actions" onsubmit="return confirm('Mark this request as completed?')">
+    <?= csrf_field() ?><input type="hidden" name="action" value="complete"><button>Mark completed</button>
+  </form>
+<?php elseif ($r['status'] === 'approved'): ?>
+  <p class="muted" style="margin:0">Approved. It can be marked completed once the scheduled time has passed.</p>
+<?php else: ?>
+  <p class="muted" style="margin:0">This request is <?= e($r['status']) ?> and can no longer be changed.</p>
+<?php endif; ?>
+</div>
 
 <h2>Payments</h2>
 <?php render_table(['id' => '#', 'amount' => 'Amount', 'method' => 'Method', 'reference_no' => 'Reference', 'status' => 'Status', 'paid_at' => 'Paid at'], $payments); ?>

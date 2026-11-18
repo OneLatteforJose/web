@@ -1,7 +1,9 @@
 <?php
 require_once __DIR__ . '/includes/user.php';
 require_once __DIR__ . '/includes/booking_rules.php';
-$me = require_user();
+$me = browse_user();
+$guest = !empty($me['guest']);
+$backUrl = $guest ? 'vehicles.php?city=' . urlencode((string)($_GET['city'] ?? '')) : 'vehicles.php';
 $pdo = db();
 
 $id = (int)($_GET['id'] ?? 0);
@@ -32,7 +34,7 @@ $ub = $pdo->prepare("SELECT start_at, end_at FROM bookings WHERE vehicle_id = ? 
 $ub->execute([$id, date('Y-m-d H:i:s')]);
 $booked = $ub->fetchAll();
 
-user_header($v['model'], 'vehicles.php', ['back' => 'vehicles.php']);
+user_header($v['model'], 'vehicles.php', ['back' => $backUrl] + ($guest ? ['guest' => true] : []));
 ?>
 <?php if ($av['code'] !== 'available'): ?>
 <p class="alert" role="status"><strong><?= e($av['label']) ?>.</strong> <?= e($av['note']) ?></p>
@@ -59,6 +61,7 @@ user_header($v['model'], 'vehicles.php', ['back' => 'vehicles.php']);
 <button class="btn" disabled><?= $av['code'] === 'maintenance' ? 'Under maintenance' : ($av['code'] === 'rented' ? 'Already rented' : 'Not available') ?></button>
 <?php else: ?>
 <a class="btn" href="book.php?id=<?= (int)$v['id'] ?>">Book now</a>
+<?php if ($guest): ?><p class="hint">No account needed to start. You log in or sign up when you are ready to pay.</p><?php endif; ?>
 <p class="hint">Pay online with GCash, Maya or a card. You are refunded in full if the manager cannot accept the booking.</p>
 <p class="hint">Pick-up is available <?= BOOKING_LEAD_HOURS ?> hours after you book: <?= e(lead_text()) ?>.</p>
 <?php endif; ?>
